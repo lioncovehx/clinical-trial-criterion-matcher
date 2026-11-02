@@ -1,0 +1,7 @@
+.venv/
+models/
+__pycache__/
+docs/
+GenAI_Assignment#2.pdf
+data/raw/
+.hf_cache/
