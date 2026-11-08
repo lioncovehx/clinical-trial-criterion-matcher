@@ -1,0 +1,92 @@
+[
+  {
+    "model": "models/Qwen3-1.7B",
+    "dtype": "torch.bfloat16",
+    "annotation_id": 0,
+    "prompt_tokens": 402,
+    "max_logit_diff": 4.0625,
+    "prediction_agreement": 0.9701492190361023,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-1.7B",
+    "dtype": "torch.bfloat16",
+    "annotation_id": 1,
+    "prompt_tokens": 381,
+    "max_logit_diff": 9.75,
+    "prediction_agreement": 0.9763779640197754,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-1.7B",
+    "dtype": "torch.bfloat16",
+    "annotation_id": 2,
+    "prompt_tokens": 387,
+    "max_logit_diff": 3.0,
+    "prediction_agreement": 0.9793282151222229,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-1.7B",
+    "dtype": "torch.bfloat16",
+    "annotation_id": 3,
+    "prompt_tokens": 402,
+    "max_logit_diff": 4.0625,
+    "prediction_agreement": 0.9676616787910461,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-1.7B",
+    "dtype": "torch.bfloat16",
+    "annotation_id": 4,
+    "prompt_tokens": 388,
+    "max_logit_diff": 2.5,
+    "prediction_agreement": 0.9768040776252747,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-0.6B",
+    "dtype": "torch.float32",
+    "annotation_id": 0,
+    "prompt_tokens": 402,
+    "max_logit_diff": 0.00015544891357421875,
+    "prediction_agreement": 1.0,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-0.6B",
+    "dtype": "torch.float32",
+    "annotation_id": 1,
+    "prompt_tokens": 381,
+    "max_logit_diff": 0.0001354217529296875,
+    "prediction_agreement": 1.0,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-0.6B",
+    "dtype": "torch.float32",
+    "annotation_id": 2,
+    "prompt_tokens": 387,
+    "max_logit_diff": 0.00019240379333496094,
+    "prediction_agreement": 1.0,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-0.6B",
+    "dtype": "torch.float32",
+    "annotation_id": 3,
+    "prompt_tokens": 402,
+    "max_logit_diff": 0.00015544891357421875,
+    "prediction_agreement": 1.0,
+    "tokens_identical": true
+  },
+  {
+    "model": "models/Qwen3-0.6B",
+    "dtype": "torch.float32",
+    "annotation_id": 4,
+    "prompt_tokens": 388,
+    "max_logit_diff": 0.00015544891357421875,
+    "prediction_agreement": 0.9999999403953552,
+    "tokens_identical": true
+  }
+]
