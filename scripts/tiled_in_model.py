@@ -9,25 +9,13 @@ import torch
 import transformers.models.qwen3.modeling_qwen3 as qwen
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.attention import causal_allowed, tiled_attention
+from src.attention import tiled_forward
 from src.data import load_split, render_prompt
 
-BLOCK = 64
 # bf16 is what we really use. fp32 is the proof: with 4-byte numbers rounding almost disappears,
 # so any difference that remains would be a real bug. (The 0.6B model has the same design and fits in fp32.)
 RUNS = [("models/Qwen3-1.7B", torch.bfloat16), ("models/Qwen3-0.6B", torch.float32)]
 original = qwen.eager_attention_forward
-
-
-def tiled_forward(module, query, key, value, attention_mask, scaling, dropout=0.0, **kwargs):
-    # Qwen3 has fewer K/V heads than Q heads, so K and V are repeated to match (GQA).
-    key, value = qwen.repeat_kv(key, module.num_key_value_groups), qwen.repeat_kv(value, module.num_key_value_groups)
-    causal = attention_mask is not None
-    if causal:  # prove the model's mask really is the causal rule that tiled_attention applies
-        allowed = causal_allowed(0, query.shape[-2], 0, key.shape[-2], key.shape[-2] - query.shape[-2], query.device)
-        assert ((attention_mask[0, 0] == 0) == allowed).all(), "the model's mask is not plain causal"
-    output = tiled_attention(query, key, value, BLOCK, causal=causal)
-    return output.transpose(1, 2).contiguous(), None
 
 
 def run(model, inputs):

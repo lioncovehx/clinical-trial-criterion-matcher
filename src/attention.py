@@ -2,7 +2,10 @@
 
 Shapes: q, k, v are [batch, heads, length, head_dim]. Output is [batch, heads, q_len, head_dim].
 """
+from contextlib import contextmanager
+
 import torch
+import transformers.models.qwen3.modeling_qwen3 as qwen
 
 
 def causal_allowed(q_start: int, q_end: int, k_start: int, k_end: int, offset: int, device) -> torch.Tensor:
@@ -81,3 +84,26 @@ def tiled_attention(q, k, v, block_size: int = 64, causal: bool = False, stats: 
 
         output[..., q_start:q_end, :] = o / l
     return output
+
+
+def tiled_forward(module, query, key, value, attention_mask, scaling, dropout=0.0, block_size=64, **kwargs):
+    """Stands in for Qwen3's attention function, so the real model runs on tiled_attention."""
+    # Qwen3 has fewer K/V heads than Q heads, so K and V are repeated to match (GQA).
+    key, value = qwen.repeat_kv(key, module.num_key_value_groups), qwen.repeat_kv(value, module.num_key_value_groups)
+    causal = attention_mask is not None
+    if causal:  # prove the model's mask really is the causal rule that tiled_attention applies
+        allowed = causal_allowed(0, query.shape[-2], 0, key.shape[-2], key.shape[-2] - query.shape[-2], query.device)
+        assert ((attention_mask[0, 0] == 0) == allowed).all(), "the model's mask is not plain causal"
+    output = tiled_attention(query, key, value, block_size, causal=causal)
+    return output.transpose(1, 2).contiguous(), None
+
+
+@contextmanager
+def tiled_attention_in(model):
+    """Inside this block, every layer of a loaded Qwen3 model uses tiled_attention."""
+    original_function, original_mode = qwen.eager_attention_forward, model.config._attn_implementation
+    qwen.eager_attention_forward, model.config._attn_implementation = tiled_forward, "eager"
+    try:
+        yield
+    finally:
+        qwen.eager_attention_forward, model.config._attn_implementation = original_function, original_mode

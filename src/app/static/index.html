@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trial Criterion Screening</title>
+<style>
+  :root {
+    --bg:#edf0f5; --panel:#fff; --panel-2:#f6f7fa; --line:#d9dfe8; --ink:#16202e; --muted:#4a5668; --accent:#2f45b5; --accent-hover:#25379a;
+    --marker:#ffe680;
+    --good-bg:#dcf1e4; --good:#11502b; --good-solid:#238551;
+    --bad-bg:#fbe1de; --bad:#7a1712; --bad-solid:#c23a30;
+    --warn-bg:#fdecc8; --warn:#6b4300; --warn-solid:#d48a12;
+    --none-bg:#e7eaf0; --none:#39465a; --none-solid:#8390a5;
+    --ease:cubic-bezier(.16,1,.3,1);
+    color-scheme:light;
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html { scrollbar-color:#aab4c4 transparent; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Fira Sans",sans-serif; caret-color:var(--accent); }
+  ::selection { background:#c9d1f4; }
+  h1,h2,h3,p { margin:0; }
+  svg.icon { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .disclaimer { position:sticky; top:0; z-index:10; display:flex; gap:.5rem; align-items:center; justify-content:center; background:var(--ink); color:#f2f4f8; padding:.45rem 1rem; font-weight:600; font-size:.875rem; text-align:center; }
+
+  header { max-width:1400px; margin:0 auto; padding:1.25rem 1.5rem .25rem; display:flex; flex-wrap:wrap; gap:.25rem 1.5rem; align-items:baseline; justify-content:space-between; }
+  h1 { font-size:1.375rem; font-weight:700; letter-spacing:-.02em; }
+  .status { display:inline-flex; gap:.45rem; align-items:center; color:var(--muted); font-size:.8125rem; overflow-wrap:anywhere; }
+  .dot { width:8px; height:8px; flex:none; border-radius:50%; background:var(--none-solid); }
+  .status.ready .dot { background:var(--good-solid); }
+  .status.failed .dot { background:var(--bad-solid); }
+  .status.failed { color:var(--bad); }
+
+  main { max-width:1400px; margin:0 auto; padding:1rem 1.5rem 3rem; display:grid; grid-template-columns:minmax(360px,440px) minmax(0,1fr); gap:1.25rem; align-items:start; }
+  .panel { background:var(--panel); border-radius:12px; box-shadow:0 1px 2px rgba(22,32,46,.06),0 6px 20px rgba(22,32,46,.05); }
+  .group { padding:1.1rem 1.25rem 1.25rem; }
+  .group + .group { border-top:1px solid var(--line); }
+  h2 { font-size:1.0625rem; font-weight:650; letter-spacing:-.01em; }
+  .hint { color:var(--muted); font-size:.875rem; }
+
+  label, .field-label { display:block; font-weight:600; font-size:.875rem; margin:.7rem 0 .3rem; }
+  textarea, input[type=text], input[type=number], select {
+    width:100%; padding:.5rem .6rem; background:var(--panel); color:var(--ink); border:1px solid #b9c3d1; border-radius:8px; font:inherit; transition:border-color .15s;
+  }
+  textarea { min-height:8.5rem; resize:vertical; line-height:1.5; }
+  textarea::placeholder, input::placeholder { color:#5f6c80; }
+  textarea:hover, input[type=text]:hover, input[type=number]:hover, select:hover { border-color:#8996aa; }
+  input[type=checkbox] { accent-color:var(--accent); width:16px; height:16px; margin:0; }
+
+  button { font:inherit; font-weight:600; font-size:.875rem; border-radius:8px; padding:.5rem .85rem; cursor:pointer; border:1px solid transparent; display:inline-flex; gap:.4rem; align-items:center; justify-content:center; transition:background .15s,border-color .15s,color .15s; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { background:var(--accent-hover); }
+  .btn-secondary { background:var(--panel); color:var(--accent); border-color:#aeb9dd; }
+  .btn-secondary:hover { background:#eef0fb; border-color:var(--accent); }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  .btn-run { width:100%; padding:.7rem 1rem; font-size:1rem; margin-top:.9rem; }
+  .actions { margin-top:.5rem; display:flex; flex-wrap:wrap; gap:.5rem; }
+
+  .error { display:flex; gap:.4rem; align-items:flex-start; color:var(--bad); font-size:.875rem; font-weight:600; margin-top:.55rem; white-space:pre-wrap; }
+  .error:empty { display:none; }
+
+  ol.sentences { list-style:none; margin:.6rem 0 0; padding:0; counter-reset:s -1; font-size:.875rem; }
+  ol.sentences li { counter-increment:s; display:grid; grid-template-columns:2rem 1fr; padding:.15rem 0; }
+  ol.sentences li::before { content:counter(s); color:var(--muted); font-variant-numeric:tabular-nums; text-align:right; padding-right:.6rem; }
+  ol.sentences mark { background:var(--marker); color:var(--ink); padding:.05rem .2rem; margin:0 -.2rem; border-radius:3px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+
+  .tabs { display:flex; gap:.25rem; border-bottom:1px solid var(--line); margin-top:.6rem; }
+  .tab { background:none; color:var(--muted); border-radius:0; padding:.45rem .6rem; border:0; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab:hover { color:var(--ink); }
+  .tab[aria-selected=true] { color:var(--accent); border-bottom-color:var(--accent); }
+
+  .criteria-head { display:flex; justify-content:space-between; gap:1rem; margin-top:1rem; font-size:.8125rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .crit-empty { color:var(--muted); font-size:.875rem; padding:.7rem 0 .1rem; }
+  .crit { display:grid; grid-template-columns:7rem 1fr auto; gap:.4rem; align-items:center; margin-top:.4rem; }
+  .crit select, .crit input { padding:.35rem .45rem; font-size:.875rem; }
+  .icon-btn { padding:.3rem; background:none; color:var(--muted); }
+  .icon-btn:hover { background:var(--bad-bg); color:var(--bad); }
+  .row { display:flex; gap:.6rem; align-items:flex-end; }
+  .row > .grow { flex:1; min-width:0; }
+  .row > .type { flex:0 0 7.5rem; }
+
+  .results-tabs { padding:.35rem 1.25rem 0; margin:0; }
+  .tabpanel { padding:1.25rem; }
+
+  .empty { text-align:center; padding:3.5rem 1.5rem; color:var(--muted); }
+  .empty h3 { color:var(--ink); font-size:1.0625rem; font-weight:650; margin-bottom:.3rem; }
+
+  .verdict { border-radius:10px; padding:1rem 1.15rem; background:var(--none-bg); color:var(--none); }
+  .verdict.good { background:var(--good-bg); color:var(--good); }
+  .verdict.bad { background:var(--bad-bg); color:var(--bad); }
+  .verdict.warn { background:var(--warn-bg); color:var(--warn); }
+  .verdict-line { display:flex; gap:.6rem; align-items:center; }
+  .verdict-line svg.icon { width:26px; height:26px; }
+  .verdict-title { font-size:1.5rem; font-weight:700; letter-spacing:-.02em; line-height:1.2; }
+  .verdict-sub { font-size:.875rem; margin-top:.15rem; }
+  .rule { font-size:.8125rem; margin-top:.6rem; max-width:80ch; }
+
+  .strip { display:flex; gap:3px; margin:1rem 0 .3rem; }
+  .seg { flex:1 1 0; min-width:6px; height:20px; padding:0; border:0; border-radius:3px; background:var(--none-bg); transition:background .25s var(--ease); }
+  .seg.running { animation:pulse 1.1s ease-in-out infinite; background:#b9c3d1; }
+  .seg.good { background:var(--good-solid); } .seg.bad { background:var(--bad-solid); } .seg.warn { background:var(--warn-solid); } .seg.none { background:var(--none-solid); }
+  .seg:hover { filter:brightness(.9); }
+  .tally { display:flex; flex-wrap:wrap; gap:.15rem 1rem; font-size:.8125rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .tally span { display:inline-flex; gap:.35rem; align-items:center; }
+  .tally i { width:9px; height:9px; border-radius:2px; display:inline-block; }
+  .tally i.good { background:var(--good-solid); } .tally i.bad { background:var(--bad-solid); } .tally i.warn { background:var(--warn-solid); } .tally i.none { background:var(--none-solid); }
+
+  .downloads { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.9rem; }
+
+  .results { margin-top:.9rem; border-top:1px solid var(--line); }
+  details.result { border-bottom:1px solid var(--line); }
+  details.result summary { list-style:none; display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:.3rem .7rem; align-items:center; padding:.65rem .25rem; cursor:pointer; border-radius:6px; }
+  details.result summary::-webkit-details-marker { display:none; }
+  details.result summary:hover { background:var(--panel-2); }
+  .result-text { font-size:.9375rem; }
+  .type-tag { color:var(--muted); font-size:.75rem; font-weight:600; display:block; }
+  .chev { color:var(--muted); transition:transform .2s var(--ease); }
+  details[open] .chev { transform:rotate(90deg); }
+  .state-icon.good { color:var(--good-solid); } .state-icon.bad { color:var(--bad-solid); } .state-icon.warn { color:var(--warn-solid); } .state-icon.none { color:var(--none-solid); }
+  .badge { display:inline-block; border-radius:99px; padding:.1rem .6rem; font-size:.8125rem; font-weight:600; white-space:nowrap; background:var(--none-bg); color:var(--none); }
+  .badge.good { background:var(--good-bg); color:var(--good); } .badge.bad { background:var(--bad-bg); color:var(--bad); } .badge.warn { background:var(--warn-bg); color:var(--warn); }
+  .sk { display:inline-block; width:92px; height:1.25rem; border-radius:99px; background:linear-gradient(90deg,#e7eaf0,#f4f6f9,#e7eaf0); background-size:200% 100%; animation:shine 1.2s linear infinite; }
+  .pending-text { color:var(--muted); font-size:.8125rem; white-space:nowrap; }
+  .result-body { padding:.1rem .25rem 1rem 2.05rem; animation:reveal .22s var(--ease); }
+  .callout { display:flex; gap:.4rem; align-items:flex-start; font-size:.875rem; font-weight:600; margin-top:.25rem; }
+  .callout.warn { color:var(--warn); } .callout.bad { color:var(--bad); }
+  .result-meta { color:var(--muted); font-size:.8125rem; margin-top:.6rem; font-variant-numeric:tabular-nums; }
+  .explain { font-size:.875rem; margin-top:.6rem; max-width:80ch; }
+
+  .checks { display:flex; flex-wrap:wrap; gap:.4rem 1.1rem; margin:.7rem 0 .2rem; }
+  .check { display:inline-flex; gap:.4rem; align-items:center; font-weight:500; margin:0; }
+  .bench-controls { display:flex; flex-wrap:wrap; gap:.75rem; align-items:flex-end; }
+  .bench-controls > div { flex:0 0 11rem; }
+  .table-wrap { overflow-x:auto; margin-top:1rem; }
+  table { border-collapse:collapse; width:100%; font-size:.875rem; font-variant-numeric:tabular-nums; }
+  th { text-align:left; font-size:.8125rem; color:var(--muted); font-weight:600; }
+  th, td { border-bottom:1px solid var(--line); padding:.5rem .6rem; white-space:nowrap; }
+  td.mode { font-weight:600; }
+  .bar-cell { display:flex; gap:.6rem; align-items:center; min-width:190px; }
+  .bar-track { flex:1; height:10px; background:var(--none-bg); border-radius:3px; overflow:hidden; }
+  .bar { height:100%; background:var(--accent); border-radius:3px; }
+  .bar-val { width:3.3rem; text-align:right; }
+  .same { display:inline-flex; gap:.3rem; align-items:center; color:var(--good); font-weight:600; }
+  .diff { display:inline-flex; gap:.3rem; align-items:center; color:var(--warn); font-weight:600; }
+
+  @keyframes shine { to { background-position:-200% 0; } }
+  @keyframes pulse { 50% { opacity:.45; } }
+  @keyframes reveal { from { opacity:.3; transform:translateY(-3px); } }
+  @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } }
+
+  @media (max-width:980px) {
+    main { grid-template-columns:minmax(0,1fr); padding:.75rem .75rem 2rem; }
+    header { padding:1rem .9rem .1rem; }
+  }
+  @media (max-width:560px) {
+    details.result summary { grid-template-columns:auto minmax(0,1fr) auto; }
+    details.result summary .badge, details.result summary .sk, details.result summary .pending-text { grid-column:2 / 3; grid-row:2; justify-self:start; }
+    .result-body { padding-left:.25rem; }
+    .crit { grid-template-columns:6rem 1fr auto; }
+    .verdict-title { font-size:1.25rem; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16 9.6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6m0-6-6 6"/></symbol>
+  <symbol id="i-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.8.4-1.2 1-1.2 1.8"/><path d="M12 16.7h.01"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 12h7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 2.8 19.5h18.4L12 4Z"/><path d="M12 10v4.5M12 17h.01"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 20h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7m2.5 0-.8 12.5H7.3L6.5 7"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
+</svg>
+
+<div class="disclaimer" id="disclaimer"><svg class="icon"><use href="#i-info"/></svg><span>Educational screening prototype, not a clinical enrollment decision.</span></div>
+
+<header>
+  <h1>Trial Criterion Screening</h1>
+  <p class="status" id="status" role="status"><span class="dot"></span><span id="statusText">Checking the model…</span></p>
+</header>
+
+<main>
+  <div class="panel">
+    <section class="group">
+      <h2>Patient note</h2>
+      <label for="note">Paste the note as free text</label>
+      <textarea id="note" placeholder="A 58-year-old woman presents with chest pain that began two days ago."></textarea>
+      <div class="actions"><button class="btn-secondary" id="splitBtn">Preview numbered sentences</button></div>
+      <div class="error" id="noteError" role="alert"></div>
+      <ol class="sentences" id="sentences"></ol>
+    </section>
+
+    <section class="group">
+      <h2>Criteria</h2>
+      <div class="tabs" role="tablist" aria-label="Ways to add criteria" data-tabs>
+        <button class="tab" role="tab" aria-selected="true" aria-controls="tabPaste" id="tPaste">Paste</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tabAdd" id="tAdd" tabindex="-1">Add one</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tabFetch" id="tFetch" tabindex="-1">Fetch by trial ID</button>
+      </div>
+      <div id="tabPaste" role="tabpanel" aria-labelledby="tPaste">
+        <label for="criteriaText">One per line, under “Inclusion Criteria:” and “Exclusion Criteria:” headers</label>
+        <textarea id="criteriaText" placeholder="Inclusion Criteria:&#10;Age 25 to 65 years&#10;&#10;Exclusion Criteria:&#10;Pregnancy"></textarea>
+        <div class="actions"><button class="btn-secondary" id="parseBtn">Use these criteria</button></div>
+      </div>
+      <div id="tabAdd" role="tabpanel" aria-labelledby="tAdd" hidden>
+        <div class="row">
+          <div class="type"><label for="newType">Type</label><select id="newType"><option>inclusion</option><option>exclusion</option></select></div>
+          <div class="grow"><label for="newText">Criterion</label><input type="text" id="newText" placeholder="Age 25 to 65 years"></div>
+        </div>
+        <div class="actions"><button class="btn-secondary" id="addBtn">Add criterion</button></div>
+      </div>
+      <div id="tabFetch" role="tabpanel" aria-labelledby="tFetch" hidden>
+        <label for="nct">ClinicalTrials.gov trial ID</label>
+        <input type="text" id="nct" placeholder="NCT02213809">
+        <div class="actions"><button class="btn-secondary" id="fetchBtn">Fetch criteria</button></div>
+        <p class="hint" id="trialTitle" style="margin-top:.5rem"></p>
+      </div>
+      <div class="error" id="criteriaError" role="alert"></div>
+      <div class="criteria-head" id="criteriaHead" hidden></div>
+      <div id="criteriaList"><p class="crit-empty">No criteria yet. Paste them, add one, or fetch a trial.</p></div>
+    </section>
+
+    <section class="group">
+      <h2>Decoding</h2>
+      <div class="row">
+        <div class="grow"><label for="mode">Mode</label>
+          <select id="mode">
+            <option value="kv_cache">KV cache (fastest)</option>
+            <option value="no_cache">No cache (reference)</option>
+            <option value="speculative">Speculative decoding</option>
+            <option value="tiled">KV cache + tiled attention</option>
+          </select></div>
+        <div class="type" id="kField" hidden><label for="k">Draft length k</label><input type="number" id="k" value="6" min="1" max="8"></div>
+      </div>
+      <button class="btn-primary btn-run" id="runBtn">Run screening</button>
+      <div class="error" id="runError" role="alert"></div>
+    </section>
+  </div>
+
+  <div class="panel">
+    <div class="tabs results-tabs" role="tablist" aria-label="Output" data-tabs>
+      <button class="tab" role="tab" aria-selected="true" aria-controls="tabResults" id="tResults">Results</button>
+      <button class="tab" role="tab" aria-selected="false" aria-controls="tabBench" id="tBench" tabindex="-1">Live benchmark</button>
+    </div>
+
+    <div id="tabResults" class="tabpanel" role="tabpanel" aria-labelledby="tResults">
+      <div class="empty" id="emptyState">
+        <h3>Results appear here</h3>
+        <p>Paste a patient note, add criteria, then run screening.</p>
+      </div>
+      <div id="resultsView" hidden>
+        <div class="verdict" id="verdict">
+          <div class="verdict-line"><span id="verdictIcon"></span><div><p class="verdict-title" id="outcome"></p><p class="verdict-sub" id="progress" role="status"></p></div></div>
+          <p class="rule" id="rule"></p>
+        </div>
+        <div class="strip" id="strip"></div>
+        <div class="tally" id="tally"></div>
+        <div class="downloads" id="downloads" hidden>
+          <button class="btn-secondary" id="dlHtml"><svg class="icon"><use href="#i-down"/></svg>Download report (HTML)</button>
+          <button class="btn-secondary" id="dlMd"><svg class="icon"><use href="#i-down"/></svg>Download report (Markdown)</button>
+        </div>
+        <div class="results" id="results"></div>
+      </div>
+    </div>
+
+    <div id="tabBench" class="tabpanel" role="tabpanel" aria-labelledby="tBench" hidden>
+      <h2>Compare decoding modes on this input</h2>
+      <p class="hint" style="margin-top:.2rem">Runs the note and the first criterion through each mode, now, three times each.</p>
+      <p class="hint" id="benchCriterion" style="margin-top:.4rem"></p>
+      <div class="checks">
+        <label class="check"><input type="checkbox" value="no_cache" checked> No cache</label>
+        <label class="check"><input type="checkbox" value="kv_cache" checked> KV cache</label>
+        <label class="check"><input type="checkbox" value="speculative" checked> Speculative</label>
+        <label class="check"><input type="checkbox" value="tiled"> Tiled attention</label>
+      </div>
+      <div class="bench-controls">
+        <div><label for="benchK">Draft length k</label><input type="number" id="benchK" value="6" min="1" max="8"></div>
+        <button class="btn-primary" id="benchBtn">Run benchmark</button>
+        <span class="hint" id="benchProgress" role="status"></span>
+      </div>
+      <div class="error" id="benchError" role="alert"></div>
+      <div class="table-wrap" id="benchTable"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+let criteria = [], currentJob = null, numbered = [], rule = '';
+
+// Show server errors as readable messages, including FastAPI's automatic validation errors.
+async function api(url, body) {
+  let reply;
+  try {
+    reply = await fetch(url, body === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  } catch { throw new Error('Could not reach the app. Check that the server is running, then try again.'); }
+  const data = await reply.json().catch(() => ({}));
+  if (!reply.ok) {
+    const d = data.detail;
+    const friendly = m => m.replace(/^Value error, /, '');
+    throw new Error(Array.isArray(d) ? d.map(e => friendly(e.msg)).join('\n') : d || `Request failed (${reply.status}).`);
+  }
+  return data;
+}
+
+function showError(id, message) { $(id).innerHTML = message ? icon('alert') + `<span>${esc(message)}</span>` : ''; }
+
+// Tabs, with arrow-key movement between them.
+document.querySelectorAll('[data-tabs]').forEach(list => {
+  const tabs = [...list.querySelectorAll('[role=tab]')];
+  const select = tab => tabs.forEach(t => {
+    const on = t === tab;
+    t.setAttribute('aria-selected', on);
+    t.tabIndex = on ? 0 : -1;
+    $(t.getAttribute('aria-controls')).hidden = !on;
+  });
+  tabs.forEach((tab, i) => {
+    tab.onclick = () => select(tab);
+    tab.onkeydown = e => {
+      const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (step) { const next = tabs[(i + step + tabs.length) % tabs.length]; select(next); next.focus(); }
+    };
+  });
+});
+
+function updateBenchCriterion() {
+  $('benchCriterion').textContent = criteria.length ? `Criterion used: ${criteria[0].text}` : 'Add a criterion to use the benchmark.';
+}
+
+function renderCriteria() {
+  const list = $('criteriaList');
+  list.innerHTML = '';
+  $('criteriaHead').hidden = !criteria.length;
+  if (!criteria.length) list.innerHTML = '<p class="crit-empty">No criteria yet. Paste them, add one, or fetch a trial.</p>';
+  else {
+    const inc = criteria.filter(c => c.type === 'inclusion').length;
+    $('criteriaHead').innerHTML = `<span>${criteria.length} ${criteria.length === 1 ? 'criterion' : 'criteria'}</span><span>${inc} inclusion, ${criteria.length - inc} exclusion</span>`;
+  }
+  criteria.forEach((c, i) => {
+    const row = document.createElement('div');
+    row.className = 'crit';
+    row.innerHTML = `<select aria-label="Type of criterion ${i + 1}"><option>inclusion</option><option>exclusion</option></select>
+      <input type="text" aria-label="Text of criterion ${i + 1}">
+      <button class="icon-btn" aria-label="Remove criterion ${i + 1}">${icon('trash')}</button>`;
+    const [select, input, remove] = [row.querySelector('select'), row.querySelector('input'), row.querySelector('button')];
+    select.value = c.type; input.value = c.text;
+    select.onchange = () => { c.type = select.value; renderCriteria(); };
+    input.oninput = () => { c.text = input.value; updateBenchCriterion(); };
+    remove.onclick = () => { criteria.splice(i, 1); renderCriteria(); };
+    list.appendChild(row);
+  });
+  updateBenchCriterion();
+}
+
+function renderSentences(list, target, cited = []) {
+  target.innerHTML = list.map((s, i) => `<li><span>${cited.includes(i) ? `<mark>${esc(s)}</mark>` : esc(s)}</span></li>`).join('');
+}
+
+async function splitNote() {
+  showError('noteError', '');
+  try { numbered = (await api('/split', {note:$('note').value})).sentences; renderSentences(numbered, $('sentences')); return true; }
+  catch (e) { showError('noteError', e.message); return false; }
+}
+$('splitBtn').onclick = splitNote;
+
+$('parseBtn').onclick = async () => {
+  showError('criteriaError', '');
+  try { criteria = (await api('/criteria/parse', {text:$('criteriaText').value})).criteria; renderCriteria(); }
+  catch (e) { showError('criteriaError', e.message); }
+};
+function addCriterion() {
+  showError('criteriaError', '');
+  const text = $('newText').value.trim();
+  if (!text) { showError('criteriaError', 'Type a criterion first.'); return; }
+  criteria.push({type:$('newType').value, text}); $('newText').value = ''; renderCriteria();
+}
+$('addBtn').onclick = addCriterion;
+$('newText').onkeydown = e => { if (e.key === 'Enter') addCriterion(); };
+$('fetchBtn').onclick = async () => {
+  showError('criteriaError', ''); $('trialTitle').textContent = '';
+  try { const t = await api('/trial/' + encodeURIComponent($('nct').value.trim())); criteria = t.criteria; $('trialTitle').textContent = t.title; renderCriteria(); }
+  catch (e) { showError('criteriaError', e.message); }
+};
+$('mode').onchange = () => { $('kField').hidden = $('mode').value !== 'speculative'; };
+
+const LOOK = {
+  included:['good','check'], 'not excluded':['good','check'],
+  excluded:['bad','x'], 'not included':['bad','x'],
+  'not enough information':['warn','q'], 'not applicable':['none','minus'], invalid:['bad','alert'],
+};
+const OUTCOME = {'Likely ineligible':['bad','x'], 'Needs review':['warn','q'], 'Potentially eligible':['good','check']};
+
+function setVerdict(tone, iconName, title, sub) {
+  $('verdict').className = 'verdict ' + tone;
+  $('verdictIcon').innerHTML = iconName ? icon(iconName) : '';
+  $('outcome').textContent = title;
+  $('progress').textContent = sub;
+}
+
+function buildRows(items) {
+  $('strip').innerHTML = items.map((c, i) => `<button class="seg" data-i="${i}" aria-label="Criterion ${i + 1}: waiting"></button>`).join('');
+  $('strip').querySelectorAll('.seg').forEach(seg => seg.onclick = () => {
+    const row = $('row' + seg.dataset.i);
+    row.open = true;
+    row.scrollIntoView({block:'nearest', behavior:matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth'});
+    row.querySelector('summary').focus({preventScroll:true});
+  });
+  $('results').innerHTML = items.map((c, i) => `<details class="result" id="row${i}"><summary>
+    <span class="state-icon none">${icon('clock')}</span>
+    <span class="result-text"><span class="type-tag">${esc(c.type)}</span>${esc(c.text)}</span>
+    <span class="pending-text" data-pending>Waiting</span>
+    <span class="chev">${icon('chev')}</span></summary>
+    <div class="result-body"><p class="hint">This criterion hasn't finished yet.</p></div></details>`).join('');
+}
+
+function markRunning(i) {
+  const seg = $('strip').children[i];
+  if (seg && !seg.dataset.done) seg.classList.add('running');
+  const row = $('row' + i);
+  const pending = row && row.querySelector('[data-pending]');
+  if (pending) pending.outerHTML = '<span class="sk" aria-label="Working" data-pending></span>';
+}
+
+function fillRow(i, r, sentences) {
+  const [tone, iconName] = LOOK[r.pred_label] || ['none', 'minus'];
+  const seg = $('strip').children[i];
+  seg.dataset.done = '1';
+  seg.className = 'seg ' + tone;
+  seg.setAttribute('aria-label', `Criterion ${i + 1}: ${r.pred_label}`);
+  const row = $('row' + i);
+  row.querySelector('.state-icon').className = 'state-icon ' + tone;
+  row.querySelector('.state-icon').innerHTML = icon(iconName);
+  row.querySelector('[data-pending]').outerHTML = `<span class="badge ${tone}">${esc(r.pred_label)}</span>`;
+  const missing = r.pred_label === 'not enough information' ? `<p class="callout warn">${icon('q')}<span>Missing information: the note does not say enough to decide this criterion.</span></p>` : '';
+  const unread = r.status !== 'ok' ? `<p class="callout bad">${icon('alert')}<span>The model's answer could not be read, so this counts as unresolved.</span></p>` : '';
+  const cited = r.pred_ids.length ? `Highlighted: sentence${r.pred_ids.length > 1 ? 's' : ''} ${r.pred_ids.join(', ')}, as cited by the model.` : 'The model cited no sentence.';
+  const speed = `${r.tokens} tokens · ${r.seconds} s · ${r.tokens_per_s} tokens/s` + (r.accept_rate == null ? '' : ` · acceptance ${r.accept_rate.toFixed(2)}`);
+  row.querySelector('.result-body').innerHTML = `${missing}${unread}<p class="hint">${cited}</p><ol class="sentences"></ol><p class="explain">${esc(r.explanation)}</p><p class="result-meta">${speed}</p>`;
+  renderSentences(sentences, row.querySelector('ol'), r.pred_ids);
+}
+
+function showTally(results) {
+  const order = ['included', 'not excluded', 'excluded', 'not included', 'not enough information', 'not applicable', 'invalid'];
+  const count = l => results.filter(r => r.pred_label === l).length;
+  $('tally').innerHTML = order.filter(count).map(l => `<span><i class="${LOOK[l][0]}"></i>${count(l)} ${esc(l)}</span>`).join('');
+}
+
+async function poll(id, onUpdate) {
+  for (;;) {
+    const job = await api('/jobs/' + id);
+    onUpdate(job);
+    if (job.status === 'done' || job.status === 'failed') return job;
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
+
+$('runBtn').onclick = async () => {
+  showError('runError', ''); $('downloads').hidden = true;
+  if (!criteria.length) { showError('runError', 'Add at least one criterion first.'); return; }
+  if (!await splitNote()) return;
+  $('tResults').click();
+  $('runBtn').disabled = true; $('runBtn').textContent = 'Screening…';
+  $('emptyState').hidden = true; $('resultsView').hidden = false;
+  $('rule').textContent = ''; $('tally').innerHTML = '';
+  const items = criteria.map(c => ({...c}));
+  buildRows(items);
+  setVerdict('', null, 'Screening…', 'Waiting for the GPU');
+  let shown = 0;
+  try {
+    const {job_id} = await api('/screen', {note:$('note').value, criteria:items, mode:$('mode').value, k:+$('k').value});
+    const job = await poll(job_id, j => {
+      while (shown < j.results.length) { fillRow(shown, j.results[shown], j.sentences); shown++; }
+      if (j.status === 'running' && shown < items.length) {
+        markRunning(shown);
+        setVerdict('', null, 'Screening…', `Finished ${shown} of ${items.length}`);
+      }
+      showTally(j.results);
+    });
+    if (job.status === 'failed') throw new Error(job.error);
+    currentJob = job_id;
+    const [tone, iconName] = OUTCOME[job.aggregate] || ['', 'info'];
+    setVerdict(tone, iconName, job.aggregate, 'Overall preliminary outcome');
+    $('rule').textContent = rule;
+    $('downloads').hidden = false;
+  } catch (e) {
+    setVerdict('bad', 'alert', 'Screening stopped', e.message);
+    $('strip').querySelectorAll('.running').forEach(s => s.classList.remove('running'));
+    $('results').querySelectorAll('[data-pending]').forEach(p => p.outerHTML = '<span class="pending-text">Not run</span>');
+    showError('runError', e.message);
+  }
+  $('runBtn').disabled = false; $('runBtn').textContent = 'Run screening';
+};
+$('dlHtml').onclick = () => location.href = `/report/${currentJob}?fmt=html`;
+$('dlMd').onclick = () => location.href = `/report/${currentJob}?fmt=md`;
+
+const MODE_NAMES = {no_cache:'No cache', kv_cache:'KV cache', speculative:'Speculative', tiled:'Tiled attention'};
+function renderBench(rows) {
+  if (!rows.length) { $('benchTable').innerHTML = ''; return; }
+  const top = Math.max(...rows.map(r => r.tokens_per_s));
+  $('benchTable').innerHTML = `<table><thead><tr><th scope="col">Mode</th><th scope="col">Speed (tokens/s)</th><th scope="col">Latency (ms)</th><th scope="col">Tokens</th><th scope="col">Peak GPU (GB)</th><th scope="col">Acceptance</th><th scope="col">Same tokens as KV cache</th></tr></thead><tbody>` +
+    rows.map(r => `<tr><td class="mode">${esc(MODE_NAMES[r.mode] || r.mode)}</td>
+      <td><div class="bar-cell"><div class="bar-track"><div class="bar" style="width:${(r.tokens_per_s / top * 100).toFixed(1)}%"></div></div><span class="bar-val">${r.tokens_per_s}</span></div></td>
+      <td>${r.latency_ms}</td><td>${r.tokens}</td><td>${r.peak_memory_gb}</td><td>${r.accept_rate ?? '–'}</td>
+      <td>${r.identical_to_reference ? `<span class="same">${icon('check')}Identical</span>` : `<span class="diff">${icon('alert')}Differs</span>`}</td></tr>`).join('') + '</tbody></table>';
+}
+
+$('benchBtn').onclick = async () => {
+  showError('benchError', ''); $('benchTable').innerHTML = ''; $('benchProgress').textContent = '';
+  const modes = [...document.querySelectorAll('.check input:checked')].map(c => c.value);
+  if (!modes.length) { showError('benchError', 'Pick at least one mode.'); return; }
+  if (!criteria.length) { showError('benchError', 'Add at least one criterion first.'); return; }
+  if (!await splitNote()) return;
+  $('benchBtn').disabled = true;
+  try {
+    const {job_id} = await api('/benchmark', {note:$('note').value, criterion:criteria[0], modes, k:+$('benchK').value});
+    const job = await poll(job_id, j => {
+      $('benchProgress').textContent = j.status === 'queued' ? 'Waiting for the GPU…' : `Measured ${j.rows.length} of ${j.modes.length}`;
+      renderBench(j.rows);
+    });
+    if (job.status === 'failed') throw new Error(job.error);
+    $('benchProgress').textContent = 'Done.';
+  } catch (e) { showError('benchError', e.message); $('benchProgress').textContent = ''; }
+  $('benchBtn').disabled = false;
+};
+
+updateBenchCriterion();
+api('/health').then(h => {
+  rule = h.rule;
+  $('status').className = 'status ' + (h.ready ? 'ready' : h.error ? 'failed' : '');
+  $('statusText').textContent = h.ready ? `Ready: ${h.target} + ${h.target_adapter}, on ${h.device}` : (h.error ? 'The model failed to load: ' + h.error : 'The model is loading…');
+}).catch(e => { $('status').className = 'status failed'; $('statusText').textContent = e.message; });
+</script>
+</body>
+</html>
