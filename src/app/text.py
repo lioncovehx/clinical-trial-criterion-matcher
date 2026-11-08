@@ -11,11 +11,11 @@ def split_sentences(text: str) -> list[str]:
     """Split on sentence ends, keeping decimals ("3.5 mg") and abbreviations ("Dr. Lee") together."""
     result = []
     for line in text.splitlines():
-        line = re.sub(r"^\s*\d+[.)]\s+", "", line).strip()  # a note that is already numbered
+        line = re.sub(r"^\s*\d+[.)]\s+", "", line).strip()  # strip existing numbering
         if not line:
             continue
         current = ""
-        # A break needs whitespace after the punctuation and a capital or digit next.
+        # break on [.!?] + whitespace + capital or digit
         for part in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"'(\[])", line):
             current = f"{current} {part}" if current else part
             if current.endswith(".") and current.rsplit(None, 1)[-1].rstrip(".").lower() in ABBREVIATIONS:
@@ -28,7 +28,7 @@ def split_sentences(text: str) -> list[str]:
 
 
 def number_note(sentences: list[str]) -> str:
-    """The same "0. text" format the model was trained on."""
+    """Number sentences in the model's "0. text" format."""
     return "\n".join(f"{i}. {s}" for i, s in enumerate(sentences))
 
 

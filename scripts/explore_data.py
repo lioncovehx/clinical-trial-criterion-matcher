@@ -1,9 +1,6 @@
-"""Dataset exploration (docs/03-dataset-and-split.md, first half).
+"""Print summary statistics for the dataset.
 
-Prints the facts the report needs. Save the output with:
-    python scripts/explore_data.py | tee results/exploration_output.txt
-
-Run from the repo root.
+Run from the repo root:  python scripts/explore_data.py
 """
 import json
 import re
@@ -21,12 +18,12 @@ def header(title: str) -> None:
 
 
 def parse_ids(s: str) -> list[int]:
-    # expert_sentences is stored as a string like "[0, 1, 2]"; it happens to be valid JSON.
+    # stored as a JSON string, e.g. "[0, 1, 2]"
     return json.loads(s)
 
 
 def sentences(note: str) -> dict[int, str]:
-    # Notes look like "0. text\n1. text". Returns {0: "text", 1: "text"}.
+    # "0. text\n1. text" -> {0: "text", 1: "text"}
     matches = (re.match(r"(\d+)\.\s*(.*)", line) for line in note.split("\n"))
     return {int(m[1]): m[2] for m in matches if m}
 
@@ -37,7 +34,7 @@ def basic_stats(df: pd.DataFrame) -> None:
     print("columns:", list(df.columns))
     print("unique patients:", df.patient_id.nunique())
     print("unique trials:", df.trial_id.nunique())
-    # Checks that each patient maps to one note, so splitting by patient is well defined.
+    # every patient should have exactly one note
     print("max distinct notes for one patient:", df.groupby("patient_id").note.nunique().max())
 
 
@@ -58,7 +55,7 @@ def evidence_stats(df: pd.DataFrame) -> None:
 
 def note_stats(df: pd.DataFrame) -> None:
     header("Note and criterion lengths")
-    # One row per patient, otherwise long notes are counted once per criterion.
+    # one row per patient
     notes = df.drop_duplicates("patient_id").note
     n_sent = notes.map(lambda n: len(sentences(n)))
     print("sentences per note: min", n_sent.min(), "median", n_sent.median(), "max", n_sent.max())
@@ -82,7 +79,7 @@ def show_examples(df: pd.DataFrame, n: int = 3) -> None:
 
 
 def token_lengths(df: pd.DataFrame) -> None:
-    header("Prompt token lengths (draft prompt; rerun once the Task 1 prompt is final)")
+    header("Prompt token lengths (simple prompt)")
     tok = AutoTokenizer.from_pretrained(MODEL_DIR)
     lengths = []
     for _, row in df.iterrows():
@@ -108,7 +105,7 @@ def look_at_not_applicable(df: pd.DataFrame, n: int = 10) -> None:
 
 
 def look_at_gpt4_incorrect(df: pd.DataFrame) -> None:
-    # For understanding only. gpt4_* columns must never reach a prompt or the evaluation.
+    # inspection only; gpt4_* columns never reach a prompt
     bad = df[df.explanation_correctness == "Incorrect"]
     header(f"GPT-4 'Incorrect' explanations: {len(bad)} rows")
     print(pd.crosstab(bad.expert_eligibility, bad.gpt4_eligibility))

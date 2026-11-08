@@ -40,7 +40,7 @@ WORKLOADS = {
 
 
 def step_ms(model, ids, steps=32) -> float:
-    """Time for one cached decode step: the draft-vs-target cost ratio comes from this."""
+    """Average time of one cached decode step, in ms."""
     cache = KVCache(ids.shape[1] + steps + 2)
     with torch.inference_mode():
         token = cached_forward(model, cache, ids)[0, -1].argmax().item()
@@ -88,7 +88,7 @@ for draft_name in args.drafts:
             tokens = sum(len(r["tokens"]) for r in last)
             drafted, accepted = sum(r["drafted"] for r in last), sum(r["accepted"] for r in last)
             counts = [n for r in last for n in r["accepted_counts"]]
-            # alpha = chance one reached guess is right. Guesses after the first wrong one are never reached.
+            # alpha: acceptance rate among guesses actually reached
             reached = sum(len(r["reached"]) for r in last)
             alpha = accepted / reached if reached else 0.0
             expected = sum(alpha ** i for i in range(k + 1))  # expected tokens per round (Leviathan et al.)

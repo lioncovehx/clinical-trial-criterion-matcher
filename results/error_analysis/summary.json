@@ -1,0 +1,156 @@
+{
+  "total": 206,
+  "label_errors": 54,
+  "error_pairs": [
+    {
+      "gold": "not enough information",
+      "predicted": "not excluded",
+      "count": 21
+    },
+    {
+      "gold": "not excluded",
+      "predicted": "not enough information",
+      "count": 13
+    },
+    {
+      "gold": "included",
+      "predicted": "not enough information",
+      "count": 5
+    },
+    {
+      "gold": "not applicable",
+      "predicted": "not excluded",
+      "count": 4
+    },
+    {
+      "gold": "not included",
+      "predicted": "not enough information",
+      "count": 3
+    },
+    {
+      "gold": "not applicable",
+      "predicted": "not enough information",
+      "count": 3
+    },
+    {
+      "gold": "not excluded",
+      "predicted": "not applicable",
+      "count": 2
+    },
+    {
+      "gold": "not enough information",
+      "predicted": "included",
+      "count": 1
+    },
+    {
+      "gold": "not enough information",
+      "predicted": "not applicable",
+      "count": 1
+    },
+    {
+      "gold": "not enough information",
+      "predicted": "not included",
+      "count": 1
+    }
+  ],
+  "not_excluded_vs_not_enough_info_errors": 34,
+  "errors_by_trial_top5": [
+    {
+      "trial": "NCT00997100",
+      "errors": 16
+    },
+    {
+      "trial": "NCT02562040",
+      "errors": 5
+    },
+    {
+      "trial": "NCT00315042",
+      "errors": 5
+    },
+    {
+      "trial": "NCT01526382",
+      "errors": 4
+    },
+    {
+      "trial": "NCT01255670",
+      "errors": 4
+    }
+  ],
+  "unmentioned_exclusion_labels": {
+    "not excluded": 79,
+    "not enough information": 26
+  },
+  "unmentioned_exclusion_by_trial": {
+    "NCT00236912": {
+      "not excluded": 8
+    },
+    "NCT00315042": {
+      "not excluded": 13,
+      "not enough information": 1
+    },
+    "NCT00393913": {
+      "not excluded": 4
+    },
+    "NCT00723788": {
+      "not enough information": 2
+    },
+    "NCT00839124": {
+      "not excluded": 10
+    },
+    "NCT00930826": {
+      "not excluded": 1
+    },
+    "NCT00997100": {
+      "not enough information": 19,
+      "not excluded": 5
+    },
+    "NCT01255670": {
+      "not excluded": 7,
+      "not enough information": 1
+    },
+    "NCT01526382": {
+      "not excluded": 1
+    },
+    "NCT01723137": {
+      "not excluded": 1
+    },
+    "NCT01745731": {
+      "not excluded": 11,
+      "not enough information": 1
+    },
+    "NCT02097186": {
+      "not excluded": 7,
+      "not enough information": 2
+    },
+    "NCT02264964": {
+      "not excluded": 4
+    },
+    "NCT02562040": {
+      "not excluded": 7
+    }
+  },
+  "errors_by_type": {
+    "inclusion": 13,
+    "exclusion": 41
+  },
+  "rows_by_type": {
+    "inclusion": 75,
+    "exclusion": 131
+  },
+  "numeric_criteria": {
+    "rows": 71,
+    "errors": 20
+  },
+  "non_numeric_criteria": {
+    "rows": 135,
+    "errors": 34
+  },
+  "right_label_evidence_differs": 31,
+  "right_label_cited_when_expert_cited_none": 9,
+  "right_label_cited_none_when_expert_cited": 13,
+  "right_label_partial_overlap": 9,
+  "parse_failures": 0,
+  "hallucinated_ids": 0,
+  "hand_analyzed_cases": 13,
+  "distinct_error_kinds": 13
+}

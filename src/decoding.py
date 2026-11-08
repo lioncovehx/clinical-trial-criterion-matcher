@@ -1,7 +1,4 @@
-"""Greedy generation with and without a KV cache.
-
-Greedy = always take the single highest-scoring next token, so the result is fully repeatable.
-"""
+"""Greedy generation: uncached, KV-cached, and speculative."""
 import time
 
 import torch
@@ -18,11 +15,10 @@ def length_prompts(tok) -> dict[str, torch.Tensor]:
 
 
 class KVCache:
-    """Our own store for each layer's keys and values. It plugs into the model through update().
+    """Per-layer K/V store passed to the model as its cache.
 
-    Memory for the whole run is reserved up front, and new tokens are written into their slots.
-    That avoids copying the whole cache every step, and it makes crop() instant.
-    Shape of one layer's K (or V): [batch, kv_heads, capacity, head_dim].
+    Preallocated, so adding a token doesn't copy the cache and crop() is O(1).
+    K/V shape: [batch, kv_heads, capacity, head_dim].
     """
 
     def __init__(self, capacity: int):
@@ -30,8 +26,8 @@ class KVCache:
         self.keys, self.values, self.lengths = [], [], []
 
     def update(self, keys, values, layer_idx: int):
-        """Called by every attention layer: store the new K/V and hand back all K/V so far."""
-        if layer_idx == len(self.keys):  # first call for this layer: reserve the memory
+        """Store the new K/V and return everything cached for this layer."""
+        if layer_idx == len(self.keys):  # first call for this layer
             shape = (*keys.shape[:2], self.capacity, keys.shape[-1])
             self.keys.append(keys.new_zeros(shape))
             self.values.append(values.new_zeros(shape))
@@ -52,7 +48,7 @@ class KVCache:
         return self.get_seq_length(layer_idx) + query_length, 0
 
     def crop(self, length: int) -> None:
-        """Forget everything after `length` tokens. Task 5 needs this to discard rejected guesses."""
+        """Drop everything after `length` tokens."""
         assert all(length <= have for have in self.lengths), "crop can only shorten the cache"
         self.lengths = [length] * len(self.lengths)
 
@@ -61,10 +57,9 @@ class KVCache:
 
 
 def cached_forward(model, cache: KVCache, tokens, logits_to_keep: int = 1):
-    """Run only the NEW tokens through the model. Everything older comes from the cache.
+    """Run only the new tokens; earlier ones come from the cache.
 
-    The position must be the token's true place in the whole sequence, because RoPE rotates
-    by absolute position. The mask covers the cached tokens plus the new ones.
+    Positions are absolute because RoPE rotates by position.
     """
     seen, new = cache.get_seq_length(), tokens.shape[1]
     positions = torch.arange(seen, seen + new, device=tokens.device)[None]
@@ -74,7 +69,7 @@ def cached_forward(model, cache: KVCache, tokens, logits_to_keep: int = 1):
 
 
 def _clock() -> float:
-    torch.cuda.synchronize()  # the GPU runs in the background: wait for it before reading the time
+    torch.cuda.synchronize()  # CUDA is async; flush before reading the clock
     return time.perf_counter()
 
 
@@ -84,7 +79,7 @@ def _result(tokens, t0, t1, t2, logits):
 
 @torch.inference_mode()
 def no_cache_greedy(model, input_ids, max_new_tokens: int, eos_ids=(), keep_logits: bool = False) -> dict:
-    """The reference path: reprocess the entire sequence at every step."""
+    """Reference path: rerun the whole sequence at every step."""
     tokens, kept = [], []
     ids = input_ids
     t0 = _clock()
@@ -97,7 +92,7 @@ def no_cache_greedy(model, input_ids, max_new_tokens: int, eos_ids=(), keep_logi
         tokens.append(token)
         ids = torch.cat([ids, torch.tensor([[token]], device=ids.device)], dim=1)
         if t1 is None:
-            t1 = _clock()  # the first pass is the "prefill": it reads the whole prompt
+            t1 = _clock()  # first pass is the prefill
         if token in eos_ids:
             break
     return _result(tokens, t0, t1, _clock(), kept)
@@ -105,7 +100,7 @@ def no_cache_greedy(model, input_ids, max_new_tokens: int, eos_ids=(), keep_logi
 
 @torch.inference_mode()
 def kv_cache_greedy(model, input_ids, max_new_tokens: int, eos_ids=(), keep_logits: bool = False) -> dict:
-    """The cached path: read the prompt once, then process one new token per step."""
+    """Prefill once, then process one token per step."""
     prompt_len = input_ids.shape[1]
     cache = KVCache(prompt_len + max_new_tokens)
     tokens, kept = [], []
@@ -130,10 +125,9 @@ def kv_cache_greedy(model, input_ids, max_new_tokens: int, eos_ids=(), keep_logi
 
 @torch.inference_mode()
 def speculative_greedy(target, draft, input_ids, max_new_tokens: int, k: int, eos_ids=()) -> dict:
-    """The small draft guesses k tokens; the big target checks them all in one pass.
+    """Greedy speculative decoding with a draft and a target model.
 
-    Rule kept true at the start of every round: both caches hold everything except the
-    newest token (`last`), which neither model has processed yet.
+    At the start of each round, both caches hold everything except the newest token.
     """
     assert k >= 1 and input_ids.shape[1] >= 2
     device = input_ids.device
@@ -149,29 +143,29 @@ def speculative_greedy(target, draft, input_ids, max_new_tokens: int, k: int, eo
     drafted_total = 0
 
     while len(tokens) < max_new_tokens and (not tokens or tokens[-1] not in eos_ids):
-        # Never draft more than we can still emit; the target's own token adds one more.
+        # the target's own token adds one more
         guesses = min(k, max_new_tokens - len(tokens) - 1)
 
-        # 1. Draft: the small model writes its guesses one at a time, using its own cache.
+        # 1. Draft
         drafted, feed = [], last
         for _ in range(guesses):
             feed = cached_forward(draft, draft_cache, tensor([feed]))[0, -1].argmax().item()
             drafted.append(feed)
 
-        # 2. Verify: one target pass over `last` + all guesses gives its choice at every position.
+        # 2. Verify all guesses in one target pass
         choices = cached_forward(target, target_cache, tensor([last, *drafted]), logits_to_keep=guesses + 1)[0].argmax(-1).tolist()
 
-        # 3. Accept the guesses up to the first disagreement.
+        # 3. Accept up to the first disagreement
         n = 0
         while n < guesses and drafted[n] == choices[n]:
             n += 1
-        # 4. The target's own token is always correct: a fix if a guess failed, a free extra if none did.
+        # 4. Target's token: a correction, or a bonus if every guess matched
         new = [*drafted[:n], choices[n]]
         accepted_counts.append(n)
         drafted_total += guesses
         reached.extend((token, i < n) for i, token in enumerate(drafted[:n + 1]))
 
-        # 5. Stop exactly at EOS, even when it falls inside the accepted guesses.
+        # 5. Stop at EOS, even inside accepted guesses
         stop = next((i for i, token in enumerate(new) if token in eos_ids), None)
         if stop is not None:
             new = new[:stop + 1]
@@ -179,8 +173,8 @@ def speculative_greedy(target, draft, input_ids, max_new_tokens: int, k: int, eo
         if stop is not None or len(tokens) >= max_new_tokens:
             break
 
-        # 6. Sync: both caches go back to "everything except the newest token".
-        if n == guesses:  # all guesses accepted: the draft never processed its own final guess
+        # 6. Re-sync both caches
+        if n == guesses:  # the draft hasn't processed its last guess
             cached_forward(draft, draft_cache, tensor([drafted[-1]]))
         length = input_ids.shape[1] + len(tokens) - 1
         target_cache.crop(length)

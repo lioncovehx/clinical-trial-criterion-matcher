@@ -1,4 +1,4 @@
-"""Browser app: paste a note and criteria, get per-criterion results, compare decoders, export a report.
+"""Browser app for per-criterion screening, decoder comparison, and report export.
 
 Start from the repo root:  uvicorn src.app.server:app --port 8000
 Educational screening prototype, not a clinical enrollment decision.
@@ -37,7 +37,7 @@ Mode = Literal["no_cache", "kv_cache", "speculative", "tiled"]
 
 
 def resolve(local: str, hub: str) -> str:
-    """Use the downloaded copy if it's here, otherwise fetch from the Hugging Face Hub."""
+    """Prefer the local copy, otherwise use the Hugging Face Hub."""
     return local if Path(local).exists() else hub
 
 
@@ -46,16 +46,16 @@ DRAFT, DRAFT_ADAPTER = resolve("models/Qwen3-0.6B", "Qwen/Qwen3-0.6B"), resolve(
 
 state = {"tok": None, "target": None, "draft": None, "error": None}
 jobs: dict[str, dict] = {}  # ponytail: kept in memory and lost on restart; use a database for real multi-user history
-# One worker = one GPU job at a time, so simultaneous requests wait in line and can't run out of memory together.
+# One worker serializes GPU jobs, so concurrent requests queue.
 gpu = ThreadPoolExecutor(max_workers=1)
 
 
 @asynccontextmanager
 async def lifespan(_app):
-    try:  # load once at startup, never per request
+    try:  # load once at startup
         state["tok"], state["target"] = load_model(TARGET, TARGET_ADAPTER)
         _, state["draft"] = load_model(DRAFT, DRAFT_ADAPTER)
-    except Exception as e:  # the page still opens and explains the problem
+    except Exception as e:  # keep serving so the page can show the error
         state["error"] = f"{type(e).__name__}: {e}"
     yield
     gpu.shutdown(wait=False)
@@ -126,7 +126,7 @@ def build_ids(numbered: str, criterion: dict):
 
 
 def decode(ids, mode: str, k: int) -> dict:
-    """Run one decoder. Every mode must give the same answer; only the speed differs."""
+    """Run one decoder and return its tokens, time, and acceptance rate."""
     target, draft, eos = state["target"], state["draft"], {state["tok"].eos_token_id}
     if mode == "speculative":
         out = speculative_greedy(target, draft, ids, MAX_NEW_TOKENS, k, eos)
@@ -170,7 +170,7 @@ def run_screen(job: dict) -> None:
         fail(job, "The GPU ran out of memory. Close other GPU programs or shorten the note, then try again.")
     except ValueError as e:
         fail(job, str(e))
-    except Exception as e:  # the page must stay usable whatever goes wrong
+    except Exception as e:  # keep the page usable on any failure
         fail(job, f"Unexpected error: {type(e).__name__}: {e}")
 
 
@@ -178,7 +178,7 @@ def run_benchmark(job: dict) -> None:
     job["status"] = "running"
     try:
         ids = build_ids(job["numbered"], job["criterion"])
-        # Plain cached greedy is the reference that every other mode's tokens are compared with.
+        # KV-cache tokens are the reference for the equality check.
         reference = decode(ids, "kv_cache", job["k"])["tokens"]
         for mode in job["modes"]:
             torch.cuda.reset_peak_memory_stats()
@@ -207,7 +207,7 @@ def start(job: dict, worker) -> dict:
 
 @app.get("/")
 def page():
-    # no-cache: browsers must check for a newer page instead of silently reusing an old copy.
+    # no-cache so browsers revalidate the page
     return FileResponse(Path(__file__).parent / "static" / "index.html", headers={"Cache-Control": "no-cache"})
 
 

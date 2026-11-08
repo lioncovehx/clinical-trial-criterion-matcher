@@ -6,3 +6,13 @@ GenAI_Assignment#2.pdf
 data/raw/
 .hf_cache/
 checkpoints/
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+report/*.fls
+report/*.fdb_latexmk
+.playwright-mcp/
+report/
+scripts/make_report_assets.py

@@ -12,7 +12,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.decoding import KVCache, cached_forward, kv_cache_greedy, length_prompts, no_cache_greedy
 
 OUTPUT_LENGTHS = (16, 64, 256)
-# bf16 is what we really use. fp32 shows whether a difference is only rounding.
+# fp32 shows whether a difference is only rounding
 RUNS = [("models/Qwen3-1.7B", torch.bfloat16), ("models/Qwen3-0.6B", torch.float32)]
 
 
@@ -21,7 +21,7 @@ def load(path, dtype, device="cuda"):
 
 
 def compare(a, b) -> dict:
-    """Identical? If not, where did they first differ, and how close was the model's top choice?"""
+    """Compare token runs; on a mismatch, report the step and top-2 margin."""
     first = next((i for i, (x, y) in enumerate(zip(a["tokens"], b["tokens"])) if x != y), None)
     if first is None and len(a["tokens"]) == len(b["tokens"]):
         return {"identical": True, "first_diff_step": "", "top2_margin_uncached": "", "top2_margin_cached": ""}
@@ -36,11 +36,11 @@ for path, dtype in RUNS:
     tok, model = load(path, dtype)
     for name, ids in length_prompts(tok).items():
         for length in OUTPUT_LENGTHS:
-            # EOS is ignored here so every run has exactly the requested length.
+            # no EOS: fixed output length
             ref = no_cache_greedy(model, ids, length, keep_logits=True)
             cached = kv_cache_greedy(model, ids, length, keep_logits=True)
             result = compare(ref, cached)
-            # After the tokens differ, the two runs are reading different text, so only earlier steps are comparable.
+            # runs aren't comparable after the tokens diverge
             same_steps = result["first_diff_step"] if not result["identical"] else length
             diff = max(abs(ref["logits"][i] - cached["logits"][i]).max().item() for i in range(max(same_steps, 1)))
             row = {"model": path, "dtype": str(dtype), "prompt": name, "prompt_tokens": ids.shape[1], "output_tokens": length,
@@ -48,12 +48,12 @@ for path, dtype in RUNS:
             rows.append(row)
             print({k: v for k, v in row.items() if k != "model"}, flush=True)
 
-    # Also the real stopping rule: stop at the end-of-turn token, in both paths the same way.
+    # same stopping rule in both paths
     eos = {tok.eos_token_id}
     ids = next(iter(length_prompts(tok).values()))
     assert no_cache_greedy(model, ids, 64, eos)["tokens"] == kv_cache_greedy(model, ids, 64, eos)["tokens"]
 
-    # crop(): go back to token 10 and continue. It must match the run that never went back.
+    # crop() then continue must match an uninterrupted run
     ids = next(iter(length_prompts(tok).values()))
     full = kv_cache_greedy(model, ids, 32)["tokens"]
     cache = KVCache(ids.shape[1] + 64)
@@ -81,9 +81,7 @@ with open(out, "w", newline="") as f:
     writer.writeheader()
     writer.writerows(rows)
 
-# Any bf16 difference is rerun on the SAME model and prompt in fp32, where rounding almost disappears.
-# Qwen3-1.7B in fp32 needs about 7 GB and doesn't fit on the GPU with room to run, so this uses the CPU.
-# It only generates a little past the step that differed, which keeps the slow CPU run short.
+# Rerun any bf16 mismatch in fp32, on the CPU because 1.7B doesn't fit on the GPU in fp32.
 bf16 = [r for r in rows if r["dtype"] == "torch.bfloat16"]
 cases = {(r["prompt"], r["first_diff_step"]) for r in bf16 if not r["identical"]}
 rerun = []

@@ -30,7 +30,7 @@ BYTES_PER_TOKEN = cfg.num_hidden_layers * cfg.num_key_value_heads * (cfg.hidden_
 print("KV cache formula:", BYTES_PER_TOKEN, "bytes per token")
 
 prompts = length_prompts(tok)
-kv_cache_greedy(model, prompts["short"], 8)  # warm-up: the first GPU run includes one-time setup
+kv_cache_greedy(model, prompts["short"], 8)  # warm-up
 no_cache_greedy(model, prompts["short"], 8)
 
 rows = []
@@ -41,14 +41,14 @@ for prompt_name, ids in prompts.items():
             for _ in range(args.repeats):
                 base = torch.cuda.memory_allocated()
                 torch.cuda.reset_peak_memory_stats()
-                runs.append(fn(model, ids, length))  # EOS ignored, so both paths produce exactly `length` tokens
+                runs.append(fn(model, ids, length))  # no EOS: fixed output length
                 peaks.append((torch.cuda.max_memory_allocated() - base) / 1e9)
             prefill, decode = [r["prefill_s"] * 1000 for r in runs], [r["decode_s"] * 1000 for r in runs]
             row = {"prompt": prompt_name, "prompt_tokens": ids.shape[1], "output_tokens": length, "method": method,
                    "prefill_ms": round(statistics.median(prefill), 2),
                    "decode_ms": round(statistics.median(decode), 2),
                    "total_ms": round(statistics.median(p + d for p, d in zip(prefill, decode)), 2),
-                   # Prefill makes the first token; decode time covers the remaining length - 1 tokens.
+                   # prefill produces the first token
                    "decode_tokens_per_s": round((length - 1) / (statistics.median(decode) / 1000), 1),
                    "peak_extra_gb": round(max(peaks), 4),
                    "cache_formula_gb": round((ids.shape[1] + length) * BYTES_PER_TOKEN / 1e9, 4) if method == "kv_cache" else "",

@@ -18,7 +18,7 @@ KS = (1, 2, 4, 6, 8)
 out = Path("results/speculative")
 out.mkdir(parents=True, exist_ok=True)
 
-# 1. The two models must turn text into the same token numbers.
+# 1. Tokenizers must match
 tok_t, tok_d = AutoTokenizer.from_pretrained(TARGET), AutoTokenizer.from_pretrained(DRAFT)
 row = load_split("val").iloc[0]
 check = {"same_vocab_size": len(tok_t) == len(tok_d), "same_vocab": tok_t.get_vocab() == tok_d.get_vocab(),
@@ -62,16 +62,15 @@ def compare_all(target, draft, label: str) -> list[dict]:
     return rows
 
 
-# 2. The real setup: fine-tuned target in bf16, plain draft.
+# 2. Real setup: fine-tuned target (bf16), plain draft
 _, target = load_model(TARGET, ADAPTER)
 draft = AutoModelForCausalLM.from_pretrained(DRAFT, dtype=torch.bfloat16, device_map="cuda").eval()
 results = compare_all(target, draft, "real_bf16")
 del target, draft
 torch.cuda.empty_cache()
 
-# 3. The logic proof, in fp32 where rounding almost disappears. 1.7B doesn't fit in fp32 next to
-#    anything else, so the roles swap: 0.6B (fp32) is the "target" and 1.7B (bf16) the "draft".
-#    Only token numbers pass between the models, so the draft's number format can't affect correctness.
+# 3. fp32 logic check. 1.7B doesn't fit in fp32 beside a second model, so 0.6B (fp32) is the
+#    target and 1.7B (bf16) the draft. Only token IDs pass between them.
 target = AutoModelForCausalLM.from_pretrained(DRAFT, dtype=torch.float32, device_map="cuda").eval()
 draft = AutoModelForCausalLM.from_pretrained(TARGET, dtype=torch.bfloat16, device_map="cuda").eval()
 proof = compare_all(target, draft, "logic_proof_fp32")

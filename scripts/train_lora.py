@@ -1,9 +1,9 @@
-"""Fine-tune the model with LoRA on the train split. All settings come from a config file.
+"""Fine-tune with LoRA on the train split, using settings from a config file.
 
 Run:          python -m scripts.train_lora --config configs/lora_v1.json
-Sanity check: python -m scripts.train_lora --config configs/lora_v1.json --name overfit --limit 8 --epochs 25
+Overfit check: python -m scripts.train_lora --config configs/lora_v1.json --name overfit --limit 8 --epochs 25
 
-After each epoch it scores validation macro-F1 and keeps the best adapter in checkpoints/<name>/best.
+Keeps the adapter with the best validation macro-F1 in checkpoints/<name>/best.
 """
 import argparse
 import csv
@@ -20,7 +20,7 @@ import torch.nn.functional as F
 import transformers
 from peft import LoraConfig, get_peft_model
 
-matplotlib.use("Agg")  # write image files; no display window needed
+matplotlib.use("Agg")  # headless
 import matplotlib.pyplot as plt
 
 from src.data import load_split, render_prompt, target_text
@@ -37,11 +37,11 @@ cfg = json.loads(Path(args.config).read_text())
 cfg["epochs"] = args.epochs or cfg["epochs"]
 name = args.name or Path(args.config).stem
 transformers.set_seed(cfg["seed"])
-order = random.Random(cfg["seed"])  # the order examples are visited in each epoch
+order = random.Random(cfg["seed"])  # per-epoch shuffle order
 
 
 def encode(tok, df) -> list[tuple[list[int], list[int]]]:
-    """Each example becomes (tokens, labels). -100 means "don't grade this token", so only the answer is graded."""
+    """Tokenize examples as (tokens, labels), with -100 masking the prompt."""
     items = []
     for r in df.itertuples():
         prompt = tok(render_prompt(tok, r.note, r.criterion_type, r.criterion_text), add_special_tokens=False).input_ids
@@ -52,7 +52,7 @@ def encode(tok, df) -> list[tuple[list[int], list[int]]]:
 
 
 def collate(batch, pad_id: int) -> dict:
-    """Make every example the same length by padding the START, so all the answers end at the same place."""
+    """Left-pad a batch so the answers end at the same position."""
     width = max(len(tokens) for tokens, _ in batch)
     out = {"input_ids": [], "labels": [], "attention_mask": []}
     for tokens, labels in batch:
@@ -70,19 +70,17 @@ def batches(items: list, size: int):
 def loss_of(model, batch):
     """Cross-entropy on the answer tokens only."""
     labels = batch.pop("labels")
-    # A score for every vocabulary word at every position is ~1.5 GB per batch, and prompt positions are
-    # never graded. Keep the last `keep` positions only: the longest answer, plus 1 for the shift below.
+    # Full-sequence logits cost ~1.5 GB per batch, so keep only the answer positions.
     keep = (labels != -100).sum(dim=1).max().item() + 1
-    # LoRA weights stay in fp32 for accurate tiny updates; autocast lets them work with the bf16 model.
+    # LoRA weights stay fp32 so small updates aren't rounded away.
     with torch.autocast("cuda", dtype=torch.bfloat16):
         logits = model(**batch, use_cache=False, logits_to_keep=keep).logits
-    # Each position predicts the NEXT token, so the scores and the labels are offset by one.
+    # shift by one: each position predicts the next token
     return F.cross_entropy(logits[:, :-1].reshape(-1, logits.size(-1)).float(), labels[:, 1 - keep:].reshape(-1), ignore_index=-100)
 
 
 tok, model = load_model(cfg["model"])
-# The GPU would otherwise keep every layer's activations for the backward pass. With this, they are
-# recomputed during backward instead, trading some speed for a lot of memory.
+# Trades speed for memory on the backward pass.
 model.gradient_checkpointing_enable()
 model.enable_input_require_grads()
 model = get_peft_model(model, LoraConfig(r=cfg["lora_rank"], lora_alpha=cfg["lora_alpha"], lora_dropout=cfg["lora_dropout"],
@@ -117,8 +115,8 @@ for epoch in range(1, cfg["epochs"] + 1):
     total = 0.0
     for chunk in batches(train_items, cfg["batch_size"]):
         loss = loss_of(model, collate(chunk, tok.pad_token_id))
-        loss.backward()  # work out how each LoRA number should change
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)  # stop one bad batch from causing a huge jump
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         optimizer.zero_grad()
         total += loss.item() * len(chunk)
@@ -137,7 +135,7 @@ for epoch in range(1, cfg["epochs"] + 1):
            "seconds": round(time.perf_counter() - start)}
     history.append(row)
     print(row, flush=True)
-    if row["val_macro_f1"] > best:  # choose by validation score, never by test
+    if row["val_macro_f1"] > best:  # select on validation only
         best = row["val_macro_f1"]
         model.save_pretrained(out / "best")
 

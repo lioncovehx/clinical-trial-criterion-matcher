@@ -1,8 +1,4 @@
-"""Loading the fixed splits, building prompts, and parsing model output.
-
-Every part of the system (training, evaluation, baseline, app) must call these same
-functions, so the prompt text can never differ between them.
-"""
+"""Split loading, prompt building, and output parsing, shared by training, evaluation, and the app."""
 import json
 import re
 from pathlib import Path
@@ -16,7 +12,7 @@ COMMON = ["not applicable", "not enough information"]
 LABELS = {"inclusion": ["included", "not included", *COMMON],
           "exclusion": ["excluded", "not excluded", *COMMON]}
 ALL_LABELS = ["included", "not included", "excluded", "not excluded", *COMMON]
-INVALID = "invalid"  # stands in for an unusable output, so it is scored as wrong and never dropped
+INVALID = "invalid"  # scored as wrong, never dropped
 
 SYSTEM = """You screen patients for clinical trials. You get a patient note with numbered sentences and one trial criterion.
 Choose one label and list the IDs of the sentences that support it. Cite no IDs if no sentence is relevant.
@@ -35,7 +31,7 @@ Reply with JSON only: {"evidence": [sentence IDs], "label": "<label>"}"""
 
 
 def load_split(split: str, allow_test: bool = False) -> pd.DataFrame:
-    """Rows for one split. The test split needs allow_test=True, set only by the final evaluation."""
+    """Rows for one split. Reading the test split requires allow_test=True."""
     if split == "test" and not allow_test:
         raise PermissionError("the test split is reserved for the final evaluation")
     patients = json.loads(MANIFEST_PATH.read_text())[split]["patient_ids"]
@@ -50,7 +46,7 @@ def sentences(note: str) -> dict[int, str]:
 
 
 def clean_criterion(text) -> str:
-    # Annotation 883 has a null criterion: its trial lists no exclusion criteria.
+    # annotation 883 has no criterion text
     return text if isinstance(text, str) and text.strip() else "(no criterion text was provided)"
 
 
@@ -67,14 +63,14 @@ def render_prompt(tok, note: str, criterion_type: str, criterion_text) -> str:
 
 
 def target_text(label: str, ids: list[int]) -> str:
-    """The answer the model is trained to give. Evidence comes first, so the label is conditioned on it."""
+    """Training target. Evidence comes first so the label follows the citations."""
     return json.dumps({"evidence": sorted(ids), "label": label})
 
 
 def parse_output(text: str, criterion_type: str, valid_ids) -> dict:
     """Turn raw model text into {status, label, ids, hallucinated}. Never raises."""
     bad = {"label": INVALID, "ids": [], "hallucinated": []}
-    match = re.search(r"\{.*?\}", text, re.DOTALL)  # tolerate text or code fences around the object
+    match = re.search(r"\{.*?\}", text, re.DOTALL)  # tolerate surrounding text or code fences
     if not match:
         return {"status": "invalid_json", **bad}
     try:
@@ -85,7 +81,7 @@ def parse_output(text: str, criterion_type: str, valid_ids) -> dict:
         return {"status": "invalid_schema", **bad}
     cited = [i for i in obj["evidence"] if isinstance(i, int) and not isinstance(i, bool)]
     ids = sorted({i for i in cited if i in valid_ids})
-    # Non-integer entries count as hallucinated too: they can't point at any sentence.
+    # non-integer entries can't point at a sentence
     hallucinated = [i for i in obj["evidence"] if i not in ids]
     label = obj.get("label")
     label = label.strip().lower() if isinstance(label, str) else None

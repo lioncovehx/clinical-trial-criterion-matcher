@@ -1,11 +1,9 @@
-"""Patient-level train/val/test split + manifest (docs/03-dataset-and-split.md, second half).
+"""Patient-level train/val/test split and manifest.
 
-Rule from the PDF: sort unique patient IDs -> shuffle with numpy.random.default_rng(42)
--> first 37 = train, next 8 = val, last 8 = test.
-
-Output: data/split_manifest.json (this file IS committed to git; data/raw is not).
+Sorted patient IDs, shuffled with numpy.random.default_rng(42): 37 train, 8 val, 8 test.
 
 Run from the repo root:  python scripts/make_split.py
+Writes data/split_manifest.json.
 """
 import hashlib
 import json
@@ -19,24 +17,24 @@ MANIFEST_PATH = Path("data/split_manifest.json")
 SEED = 42
 N_TRAIN, N_VAL, N_TEST = 37, 8, 8
 
-# Expected results (from docs/03). The script asserts these at the end.
+# Expected row counts for this dataset and seed.
 EXPECTED_ROWS = {"train": 603, "val": 206, "test": 206}
 
 
 def sha256_file(path: Path) -> str:
-    # Lets anyone confirm they have the exact same dataset file.
+    # identifies the exact dataset file
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def sorted_patient_ids(df: pd.DataFrame) -> list[str]:
-    # Sorting first makes the shuffle independent of the order rows appear in the file.
+    # sort first so the shuffle doesn't depend on row order
     ids = sorted(str(p) for p in df.patient_id.unique())
     assert len(ids) == N_TRAIN + N_VAL + N_TEST, f"expected 53 patients, got {len(ids)}"
     return ids
 
 
 def check_shuffle_methods(ids: list[str]) -> None:
-    # Each method gets a fresh generator, so they all start from the same random state.
+    # fresh generator per method, same starting state
     a = np.array(ids)
     np.random.default_rng(SEED).shuffle(a)
     b = np.random.default_rng(SEED).permutation(np.array(ids))
@@ -48,11 +46,10 @@ def check_shuffle_methods(ids: list[str]) -> None:
 
 
 def split_patients(ids: list[str]) -> dict[str, list[str]]:
-    # Nothing else may draw from this generator before the shuffle.
     rng = np.random.default_rng(SEED)
     shuffled = np.array(ids)
     rng.shuffle(shuffled)  # in place
-    shuffled = shuffled.tolist()  # plain str, because numpy strings don't serialize to JSON
+    shuffled = shuffled.tolist()  # numpy strings don't serialize to JSON
     return {
         "train": shuffled[:N_TRAIN],
         "val": shuffled[N_TRAIN:N_TRAIN + N_VAL],
@@ -75,9 +72,9 @@ def leakage_checks(df: pd.DataFrame, splits: dict[str, list[str]]) -> None:
     assert train | val | test == set(df.patient_id), "the splits don't cover every patient"
     assert sum(len(rows_for(df, p)) for p in splits.values()) == len(df), "row counts don't add up"
 
-    # The "no GPT-4 text in prompts" check belongs in the Task 1 prompt builder, where a leak could happen.
-    # Compare against rendered prompts minus the note: row 604's GPT-4 explanation just quotes the note.
-    # "Test is loaded in only one place" can't be asserted here: only the final-eval script may read test IDs.
+    # GPT-4 columns are never read by the prompt builder. A substring check here would misfire:
+    # annotation 604's GPT-4 explanation just quotes the note.
+    # Test-split access is guarded in src.data.load_split.
     print("leakage checks passed")
 
 
@@ -109,8 +106,7 @@ def main() -> None:
     leakage_checks(df, splits)
     manifest = build_manifest(df, splits)
 
-    # Final checks against the numbers in docs/03. If these fail, find out why
-    # before going further -- don't change the expected numbers to match.
+    # Sanity-check the split against the known counts.
     for name, expected in EXPECTED_ROWS.items():
         got = manifest[name]["n_rows"]
         assert got == expected, f"{name}: {got} rows, expected {expected}"

@@ -24,7 +24,7 @@ parser.add_argument("--sizes", type=int, nargs="+", default=[256, 512, 1024, 204
 args = parser.parse_args()
 
 HEADS, HEAD_DIM, BLOCK, REPEATS = 8, 128, 64, 5
-DEVICE, DTYPE = "cuda", torch.float16  # the FlashAttention kernels want fp16 or bf16
+DEVICE, DTYPE = "cuda", torch.float16  # flash kernels need fp16 or bf16
 
 
 def fused(backend):
@@ -45,16 +45,16 @@ METHODS = {
 
 
 def measure(fn, q, k, v, mask):
-    fn(q, k, v, mask)  # warm-up: the first run includes one-time setup costs
+    fn(q, k, v, mask)  # warm-up
     torch.cuda.synchronize()
     base = torch.cuda.memory_allocated()
     torch.cuda.reset_peak_memory_stats()
     times = []
     for _ in range(REPEATS):
-        torch.cuda.synchronize()  # the GPU works in the background: wait before starting the clock
+        torch.cuda.synchronize()  # CUDA is async; flush before timing
         start = time.perf_counter()
         out = fn(q, k, v, mask)
-        torch.cuda.synchronize()  # ...and wait for it to finish before stopping the clock
+        torch.cuda.synchronize()
         times.append(time.perf_counter() - start)
         del out
     return times, (torch.cuda.max_memory_allocated() - base) / 1e9

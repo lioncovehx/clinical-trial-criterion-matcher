@@ -54,7 +54,7 @@ label: included | evidence IDs: [0]
 label: included | evidence IDs: [0]
   0: A 58-year-old African-American woman presents to the ER with episodic pressing/burning anterior chest pain that began two days earlier for the first time in her life.
 
-===== Prompt token lengths (draft prompt; rerun once the Task 1 prompt is final) =====
+===== Prompt token lengths (simple prompt) =====
 min 100 median 170.0 max 472
 
 ===== Criterion repetition =====

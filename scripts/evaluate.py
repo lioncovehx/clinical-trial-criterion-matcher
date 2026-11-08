@@ -1,8 +1,8 @@
-"""Score a model on a split. Saves every prediction and all the metrics to results/.
+"""Score a model on a split and save predictions and metrics to results/.
 
 Untrained:  python -m scripts.evaluate --model models/Qwen3-1.7B --name qwen_base
 Trained:    python -m scripts.evaluate --model models/Qwen3-1.7B --adapter <folder> --name qwen_lora
-This is the only script allowed to open the test split (--split test), and only at the very end.
+--split test evaluates the held-out split.
 """
 import argparse
 import json

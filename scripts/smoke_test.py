@@ -1,4 +1,4 @@
-"""Smoke test: can we load Qwen3-1.7B on the GPU and get a sane, non-thinking reply?
+"""Check that Qwen3-1.7B loads on the GPU and gives a non-thinking reply.
 
 Run from the repo root:  python scripts/smoke_test.py
 """
@@ -7,22 +7,20 @@ import time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-MODEL_DIR = "models/Qwen3-1.7B"  # local folder; on a fresh clone use "Qwen/Qwen3-1.7B"
+MODEL_DIR = "models/Qwen3-1.7B"  # or "Qwen/Qwen3-1.7B" from the Hub
 
-torch.manual_seed(0)  # greedy decoding is deterministic anyway, but log a seed by habit
+torch.manual_seed(0)
 
-# 1. Load. bf16 = 2 bytes per weight, so expect roughly params x 2 bytes of GPU memory.
+# bf16: about 2 bytes per parameter
 t0 = time.perf_counter()
 tok = AutoTokenizer.from_pretrained(MODEL_DIR)
 model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, dtype=torch.bfloat16, device_map="cuda")
-model.eval()  # inference mode: disables dropout
-torch.cuda.synchronize()  # GPU work is async; wait before reading the clock
+model.eval()
+torch.cuda.synchronize()  # CUDA is async; flush before timing
 print(f"load time: {time.perf_counter() - t0:.1f}s")
 print(f"memory after load: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-# 2. Prompt. The chat template wraps the message in Qwen's special role tokens.
-#    enable_thinking=False makes the template pre-fill an EMPTY <think></think> block,
-#    so the model skips reasoning and answers directly.
+# enable_thinking=False prefills an empty <think> block.
 messages = [{"role": "user", "content": "In one sentence: what is an exclusion criterion in a clinical trial?"}]
 prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
 print("---- prompt string the model actually sees ----")
@@ -30,17 +28,16 @@ print(prompt)
 inputs = tok(prompt, return_tensors="pt").to("cuda")
 print(f"prompt tokens: {inputs.input_ids.shape[1]}")
 
-# 3. Generate greedily (do_sample=False = always pick the highest-scoring token).
 torch.cuda.reset_peak_memory_stats()
-with torch.inference_mode():  # no gradients -> far less memory
+with torch.inference_mode():
     out = model.generate(**inputs, max_new_tokens=64, do_sample=False)
-new_tokens = out[0, inputs.input_ids.shape[1]:]  # drop the prompt, keep only the reply
+new_tokens = out[0, inputs.input_ids.shape[1]:]  # reply only
 reply = tok.decode(new_tokens, skip_special_tokens=True)
 print("---- reply ----")
 print(reply)
 print(f"generated tokens: {len(new_tokens)}")
 
-# 4. Memory. Peak includes weights + KV cache + temporary activations.
+# weights + KV cache + activations
 peak = torch.cuda.max_memory_allocated() / 1e9
 print(f"peak memory during generate: {peak:.2f} GB")
 

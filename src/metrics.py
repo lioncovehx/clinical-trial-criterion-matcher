@@ -1,4 +1,4 @@
-"""Label and evidence metrics. All conventions live here so the report and the app agree.
+"""Label and evidence metrics, and the conventions behind them.
 
 Label conventions
 - A parse failure is the prediction "invalid", so it is always wrong and never dropped.

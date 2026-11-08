@@ -1,4 +1,4 @@
-"""Swap your tiled attention into every layer of Qwen3 and check nothing changes.
+"""Run Qwen3 with tiled attention in every layer and compare with the stock function.
 
 Run: python -m scripts.tiled_in_model
 """
@@ -12,8 +12,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.attention import tiled_forward
 from src.data import load_split, render_prompt
 
-# bf16 is what we really use. fp32 is the proof: with 4-byte numbers rounding almost disappears,
-# so any difference that remains would be a real bug. (The 0.6B model has the same design and fits in fp32.)
+# fp32 rules out rounding, so any remaining difference would be a bug. 0.6B fits in fp32.
 RUNS = [("models/Qwen3-1.7B", torch.bfloat16), ("models/Qwen3-0.6B", torch.float32)]
 original = qwen.eager_attention_forward
 
@@ -29,7 +28,7 @@ results = []
 df = load_split("val").head(5)
 for path, dtype in RUNS:
     tok = AutoTokenizer.from_pretrained(path)
-    # "eager" makes Qwen3 call the plain Python attention function, which is the one we replace.
+    # eager routes attention through the Python function that gets patched
     model = AutoModelForCausalLM.from_pretrained(path, dtype=dtype, device_map="cuda", attn_implementation="eager").eval()
     for r in df.itertuples():
         inputs = tok(render_prompt(tok, r.note, r.criterion_type, r.criterion_text), return_tensors="pt").to("cuda")
