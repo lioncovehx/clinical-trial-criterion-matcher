@@ -1,0 +1,8 @@
+[
+  {
+    "prompt": "short",
+    "bf16_first_diff_step": 35,
+    "tokens_generated": 38,
+    "identical_in_fp32": true
+  }
+]
