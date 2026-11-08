@@ -53,6 +53,7 @@ class KVCache:
 
     def crop(self, length: int) -> None:
         """Forget everything after `length` tokens. Task 5 needs this to discard rejected guesses."""
+        assert all(length <= have for have in self.lengths), "crop can only shorten the cache"
         self.lengths = [length] * len(self.lengths)
 
     def memory_bytes(self) -> int:
@@ -125,3 +126,67 @@ def kv_cache_greedy(model, input_ids, max_new_tokens: int, eos_ids=(), keep_logi
             kept.append(logits.float().cpu())
         tokens.append(logits.argmax().item())
     return {**_result(tokens, t0, t1, _clock(), kept), "cache_bytes": cache.memory_bytes()}
+
+
+@torch.inference_mode()
+def speculative_greedy(target, draft, input_ids, max_new_tokens: int, k: int, eos_ids=()) -> dict:
+    """The small draft guesses k tokens; the big target checks them all in one pass.
+
+    Rule kept true at the start of every round: both caches hold everything except the
+    newest token (`last`), which neither model has processed yet.
+    """
+    assert k >= 1 and input_ids.shape[1] >= 2
+    device = input_ids.device
+    capacity = input_ids.shape[1] + max_new_tokens + k + 2
+    target_cache, draft_cache = KVCache(capacity), KVCache(capacity)
+    tensor = lambda ids: torch.tensor([ids], device=device)
+
+    t0 = _clock()
+    cached_forward(target, target_cache, input_ids[:, :-1])
+    cached_forward(draft, draft_cache, input_ids[:, :-1])
+    last = input_ids[0, -1].item()
+    tokens, accepted_counts, reached = [], [], []
+    drafted_total = 0
+
+    while len(tokens) < max_new_tokens and (not tokens or tokens[-1] not in eos_ids):
+        # Never draft more than we can still emit; the target's own token adds one more.
+        guesses = min(k, max_new_tokens - len(tokens) - 1)
+
+        # 1. Draft: the small model writes its guesses one at a time, using its own cache.
+        drafted, feed = [], last
+        for _ in range(guesses):
+            feed = cached_forward(draft, draft_cache, tensor([feed]))[0, -1].argmax().item()
+            drafted.append(feed)
+
+        # 2. Verify: one target pass over `last` + all guesses gives its choice at every position.
+        choices = cached_forward(target, target_cache, tensor([last, *drafted]), logits_to_keep=guesses + 1)[0].argmax(-1).tolist()
+
+        # 3. Accept the guesses up to the first disagreement.
+        n = 0
+        while n < guesses and drafted[n] == choices[n]:
+            n += 1
+        # 4. The target's own token is always correct: a fix if a guess failed, a free extra if none did.
+        new = [*drafted[:n], choices[n]]
+        accepted_counts.append(n)
+        drafted_total += guesses
+        reached.extend((token, i < n) for i, token in enumerate(drafted[:n + 1]))
+
+        # 5. Stop exactly at EOS, even when it falls inside the accepted guesses.
+        stop = next((i for i, token in enumerate(new) if token in eos_ids), None)
+        if stop is not None:
+            new = new[:stop + 1]
+        tokens.extend(new)
+        if stop is not None or len(tokens) >= max_new_tokens:
+            break
+
+        # 6. Sync: both caches go back to "everything except the newest token".
+        if n == guesses:  # all guesses accepted: the draft never processed its own final guess
+            cached_forward(draft, draft_cache, tensor([drafted[-1]]))
+        length = input_ids.shape[1] + len(tokens) - 1
+        target_cache.crop(length)
+        draft_cache.crop(length)
+        last = tokens[-1]
+
+    return {"tokens": tokens, "total_s": _clock() - t0, "accepted_counts": accepted_counts,
+            "drafted": drafted_total, "accepted": sum(accepted_counts), "reached": reached,
+            "target_passes": len(accepted_counts) + 1}  # + 1 for the prefill

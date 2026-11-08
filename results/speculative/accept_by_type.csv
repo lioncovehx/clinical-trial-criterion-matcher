@@ -1,0 +1,31 @@
+draft,k,token_kind,accepted,reached,rate
+base,1,format,85,107,0.794
+base,1,label word,39,42,0.929
+base,1,sentence ID,5,10,0.5
+base,2,format,111,145,0.766
+base,2,label word,56,62,0.903
+base,2,sentence ID,6,11,0.545
+base,4,format,151,206,0.733
+base,4,label word,49,62,0.79
+base,4,sentence ID,2,3,0.667
+base,6,format,149,202,0.738
+base,6,label word,62,79,0.785
+base,6,sentence ID,6,11,0.545
+base,8,format,157,209,0.751
+base,8,label word,59,76,0.776
+base,8,sentence ID,6,11,0.545
+tuned,1,format,106,109,0.972
+tuned,1,label word,34,40,0.85
+tuned,1,sentence ID,2,4,0.5
+tuned,2,format,145,158,0.918
+tuned,2,label word,45,51,0.882
+tuned,2,sentence ID,2,2,1.0
+tuned,4,format,164,183,0.896
+tuned,4,label word,58,66,0.879
+tuned,4,sentence ID,9,11,0.818
+tuned,6,format,169,180,0.939
+tuned,6,label word,71,77,0.922
+tuned,6,sentence ID,9,11,0.818
+tuned,8,format,173,197,0.878
+tuned,8,label word,71,79,0.899
+tuned,8,sentence ID,9,10,0.9

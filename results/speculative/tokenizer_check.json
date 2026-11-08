@@ -1,0 +1,7 @@
+{
+  "same_vocab_size": true,
+  "same_vocab": true,
+  "same_special_tokens": true,
+  "same_eos": true,
+  "same_rendered_prompt": true
+}
