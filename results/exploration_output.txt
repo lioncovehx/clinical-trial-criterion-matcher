@@ -1,0 +1,89 @@
+
+===== Basic stats =====
+shape: (1015, 14)
+columns: ['annotation_id', 'patient_id', 'note', 'trial_id', 'trial_title', 'criterion_type', 'criterion_text', 'gpt4_explanation', 'explanation_correctness', 'gpt4_sentences', 'expert_sentences', 'gpt4_eligibility', 'expert_eligibility', 'training']
+unique patients: 53
+unique trials: 103
+max distinct notes for one patient: 1
+
+===== Labels by criterion type =====
+criterion_type          exclusion  inclusion   All
+expert_eligibility                                
+excluded                       10          0    10
+included                        0        150   150
+not applicable                 46          9    55
+not enough information        119        174   293
+not excluded                  484          0   484
+not included                    0         23    23
+All                           659        356  1015
+
+===== Evidence =====
+rows with empty evidence: 610
+                        empty  total
+expert_eligibility                  
+excluded                    0     10
+included                    7    150
+not applicable             44     55
+not enough information    184    293
+not excluded              366    484
+not included                9     23
+most sentences cited in one row: 9
+
+===== Note and criterion lengths =====
+sentences per note: min 3 median 6.0 max 14
+note characters: min 370 max 1447
+criterion characters: median 58.0 max 1170.0
+last sentence of 3 notes (truncation must never remove these):
+  - 8. The patient will provide informed consent, and will comply with the trial protocol without any practical issues.
+  - 6. The patient will provide informed consent, and will comply with the trial protocol without any practical issues.
+  - 3. The patient will provide informed consent, and will comply with the trial protocol without any practical issues.
+
+===== 3 examples that cite evidence =====
+
+[0] inclusion: Patients of chronic stable angina with abnormal Exercise Myocardial Perfusion Spect Scan with reversible and partially reversible ischemic changes.
+label: not enough information | evidence IDs: [0, 1, 2]
+  0: A 58-year-old African-American woman presents to the ER with episodic pressing/burning anterior chest pain that began two days earlier for the first time in her life.
+  1: The pain started while she was walking, radiates to the back, and is accompanied by nausea, diaphoresis and mild dyspnea, but is not increased on inspiration.
+  2: The latest episode of pain ended half an hour prior to her arrival.
+
+[1] inclusion: Male and female
+label: included | evidence IDs: [0]
+  0: A 58-year-old African-American woman presents to the ER with episodic pressing/burning anterior chest pain that began two days earlier for the first time in her life.
+
+[2] inclusion: Age 25 to 65 years
+label: included | evidence IDs: [0]
+  0: A 58-year-old African-American woman presents to the ER with episodic pressing/burning anterior chest pain that began two days earlier for the first time in her life.
+
+===== Prompt token lengths (draft prompt; rerun once the Task 1 prompt is final) =====
+min 100 median 170.0 max 472
+
+===== Criterion repetition =====
+unique criteria: 1001 of 1015 rows
+criterion_text
+Pregnancy                                                  3
+Patient and/or parents/guardian signed informed consent    2
+Patients with cough or shortness of breath                 2
+Chest tubes                                                2
+Skin lesions precluding attachment of sensors              2
+
+===== 10 'not applicable' criteria =====
+- (exclusion) Patients with IHD within 6 months after percutaneous coronary intervention(PCI), and who are stable but are going to implement PCI or coronary artery 
+- (inclusion) full of physical examination and laboratory examination have been carried out after one week，but still cannot make a definite diagnosis
+- (exclusion) Pregnant women
+- (inclusion) Patient agrees to have effective contraception for the duration of participation in the research
+- (exclusion) Female subjects diagnosed with KD 12 years of age and older.
+- (exclusion) MRI images unable to be processed
+- (exclusion) All 5 MRI time points not collected
+- (exclusion) Pregnancy
+- (exclusion) Recurrent hematoma if the first surgery was performed before study start
+- (exclusion) Pregnancy
+
+===== GPT-4 'Incorrect' explanations: 26 rows =====
+gpt4_eligibility        excluded  included  ...  not excluded  not included
+expert_eligibility                          ...                            
+included                       0         0  ...             0             1
+not enough information         0         0  ...             1             3
+not excluded                   3         0  ...             0             0
+not included                   0         2  ...             0             0
+
+[4 rows x 6 columns]
