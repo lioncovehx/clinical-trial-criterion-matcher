@@ -5,3 +5,4 @@ docs/
 GenAI_Assignment#2.pdf
 data/raw/
 .hf_cache/
+checkpoints/

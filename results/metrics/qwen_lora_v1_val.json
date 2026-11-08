@@ -1,0 +1,462 @@
+{
+  "overall": {
+    "labels": {
+      "n": 206,
+      "accuracy": 0.7524271844660194,
+      "macro_f1": 0.5310896555028913,
+      "macro_f1_all_labels": 0.5310896555028913,
+      "per_class": {
+        "included": {
+          "precision": 0.9,
+          "recall": 0.7714285714285715,
+          "f1": 0.8307692307692308,
+          "support": 35
+        },
+        "not included": {
+          "precision": 1.0,
+          "recall": 0.3333333333333333,
+          "f1": 0.5,
+          "support": 3
+        },
+        "excluded": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 2
+        },
+        "not excluded": {
+          "precision": 0.768,
+          "recall": 0.9504950495049505,
+          "f1": 0.8495575221238938,
+          "support": 101
+        },
+        "not applicable": {
+          "precision": 0.45454545454545453,
+          "recall": 0.4166666666666667,
+          "f1": 0.43478260869565216,
+          "support": 12
+        },
+        "not enough information": {
+          "precision": 0.6842105263157895,
+          "recall": 0.49056603773584906,
+          "f1": 0.5714285714285714,
+          "support": 53
+        }
+      },
+      "confusion_labels": [
+        "included",
+        "not included",
+        "excluded",
+        "not excluded",
+        "not applicable",
+        "not enough information",
+        "invalid"
+      ],
+      "confusion_matrix": [
+        [
+          27,
+          0,
+          0,
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          96,
+          3,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          6,
+          5,
+          1,
+          0
+        ],
+        [
+          3,
+          0,
+          0,
+          21,
+          3,
+          26,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "evidence": {
+      "micro": {
+        "precision": 0.5112781954887218,
+        "recall": 0.591304347826087,
+        "f1": 0.5483870967741936
+      },
+      "macro_nonempty_gold": {
+        "precision": 0.605,
+        "recall": 0.649074074074074,
+        "f1": 0.6041269841269842
+      },
+      "macro_all": {
+        "precision": 0.7594660194174757,
+        "recall": 0.7787216828478964,
+        "f1": 0.7590846047156726
+      },
+      "empty_agreement": 0.8793103448275862,
+      "n_records": 206,
+      "n_empty_gold": 116
+    }
+  },
+  "inclusion": {
+    "labels": {
+      "n": 66,
+      "accuracy": 0.7878787878787878,
+      "macro_f1": 0.5262406947890819,
+      "macro_f1_all_labels": 0.5262406947890819,
+      "per_class": {
+        "included": {
+          "precision": 0.9,
+          "recall": 0.7714285714285715,
+          "f1": 0.8307692307692308,
+          "support": 35
+        },
+        "not included": {
+          "precision": 1.0,
+          "recall": 0.3333333333333333,
+          "f1": 0.5,
+          "support": 3
+        },
+        "not applicable": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 1
+        },
+        "not enough information": {
+          "precision": 0.6857142857142857,
+          "recall": 0.8888888888888888,
+          "f1": 0.7741935483870968,
+          "support": 27
+        }
+      },
+      "confusion_labels": [
+        "included",
+        "not included",
+        "not applicable",
+        "not enough information",
+        "invalid"
+      ],
+      "confusion_matrix": [
+        [
+          27,
+          0,
+          0,
+          8,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          3,
+          0,
+          0,
+          24,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "evidence": {
+      "micro": {
+        "precision": 0.5368421052631579,
+        "recall": 0.7611940298507462,
+        "f1": 0.6296296296296295
+      },
+      "macro_nonempty_gold": {
+        "precision": 0.759,
+        "recall": 0.8483333333333333,
+        "f1": 0.7674285714285715
+      },
+      "macro_all": {
+        "precision": 0.7265151515151516,
+        "recall": 0.7941919191919191,
+        "f1": 0.7329004329004329
+      },
+      "empty_agreement": 0.625,
+      "n_records": 66,
+      "n_empty_gold": 16
+    }
+  },
+  "exclusion": {
+    "labels": {
+      "n": 140,
+      "accuracy": 0.7357142857142858,
+      "macro_f1": 0.3605085027880267,
+      "macro_f1_all_labels": 0.36050850278802676,
+      "per_class": {
+        "excluded": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 2
+        },
+        "not excluded": {
+          "precision": 0.768,
+          "recall": 0.9504950495049505,
+          "f1": 0.8495575221238938,
+          "support": 101
+        },
+        "not applicable": {
+          "precision": 0.45454545454545453,
+          "recall": 0.45454545454545453,
+          "f1": 0.45454545454545453,
+          "support": 11
+        },
+        "not enough information": {
+          "precision": 0.6666666666666666,
+          "recall": 0.07692307692307693,
+          "f1": 0.13793103448275862,
+          "support": 26
+        }
+      },
+      "confusion_labels": [
+        "excluded",
+        "not excluded",
+        "not applicable",
+        "not enough information",
+        "invalid"
+      ],
+      "confusion_matrix": [
+        [
+          0,
+          2,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          96,
+          3,
+          1,
+          0
+        ],
+        [
+          0,
+          6,
+          5,
+          0,
+          0
+        ],
+        [
+          0,
+          21,
+          3,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "evidence": {
+      "micro": {
+        "precision": 0.4473684210526316,
+        "recall": 0.3541666666666667,
+        "f1": 0.3953488372093023
+      },
+      "macro_nonempty_gold": {
+        "precision": 0.4125,
+        "recall": 0.4,
+        "f1": 0.4
+      },
+      "macro_all": {
+        "precision": 0.775,
+        "recall": 0.7714285714285715,
+        "f1": 0.7714285714285715
+      },
+      "empty_agreement": 0.92,
+      "n_records": 140,
+      "n_empty_gold": 100
+    }
+  },
+  "parse": {
+    "ok": 206
+  },
+  "parse_failure_rate": 0.0,
+  "hallucinated_id_count": 0,
+  "majority_baseline": {
+    "label": "not excluded",
+    "n": 206,
+    "accuracy": 0.49029126213592233,
+    "macro_f1": 0.10966340933767643,
+    "macro_f1_all_labels": 0.10966340933767643,
+    "per_class": {
+      "included": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 35
+      },
+      "not included": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 3
+      },
+      "excluded": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 2
+      },
+      "not excluded": {
+        "precision": 0.49029126213592233,
+        "recall": 1.0,
+        "f1": 0.6579804560260586,
+        "support": 101
+      },
+      "not applicable": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 12
+      },
+      "not enough information": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 53
+      }
+    },
+    "confusion_labels": [
+      "included",
+      "not included",
+      "excluded",
+      "not excluded",
+      "not applicable",
+      "not enough information",
+      "invalid"
+    ],
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        0,
+        35,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        101,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        12,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        53,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  }
+}
