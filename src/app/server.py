@@ -207,7 +207,8 @@ def start(job: dict, worker) -> dict:
 
 @app.get("/")
 def page():
-    return FileResponse(Path(__file__).parent / "static" / "index.html")
+    # no-cache: browsers must check for a newer page instead of silently reusing an old copy.
+    return FileResponse(Path(__file__).parent / "static" / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/health")

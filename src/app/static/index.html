@@ -139,7 +139,7 @@
   th { text-align:left; font-size:.8125rem; color:var(--muted); font-weight:600; }
   th, td { border-bottom:1px solid var(--line); padding:.5rem .6rem; white-space:nowrap; }
   td.mode { font-weight:600; }
-  .bar-cell { display:flex; gap:.6rem; align-items:center; min-width:190px; }
+  .bar-cell { display:flex; gap:.6rem; align-items:center; min-width:150px; }
   .bar-track { flex:1; height:10px; background:var(--none-bg); border-radius:3px; overflow:hidden; }
   .bar { height:100%; background:var(--accent); border-radius:3px; }
   .bar-val { width:3.3rem; text-align:right; }
@@ -367,7 +367,7 @@ function renderSentences(list, target, cited = []) {
 async function splitNote() {
   showError('noteError', '');
   try { numbered = (await api('/split', {note:$('note').value})).sentences; renderSentences(numbered, $('sentences')); return true; }
-  catch (e) { showError('noteError', e.message); return false; }
+  catch (e) { $('sentences').innerHTML = ''; showError('noteError', e.message); return false; }
 }
 $('splitBtn').onclick = splitNote;
 
@@ -505,7 +505,7 @@ const MODE_NAMES = {no_cache:'No cache', kv_cache:'KV cache', speculative:'Specu
 function renderBench(rows) {
   if (!rows.length) { $('benchTable').innerHTML = ''; return; }
   const top = Math.max(...rows.map(r => r.tokens_per_s));
-  $('benchTable').innerHTML = `<table><thead><tr><th scope="col">Mode</th><th scope="col">Speed (tokens/s)</th><th scope="col">Latency (ms)</th><th scope="col">Tokens</th><th scope="col">Peak GPU (GB)</th><th scope="col">Acceptance</th><th scope="col">Same tokens as KV cache</th></tr></thead><tbody>` +
+  $('benchTable').innerHTML = `<table><thead><tr><th scope="col">Mode</th><th scope="col">Speed (tokens/s)</th><th scope="col">Latency (ms)</th><th scope="col">Tokens</th><th scope="col">Peak GPU (GB)</th><th scope="col">Acceptance</th><th scope="col">Matches KV cache</th></tr></thead><tbody>` +
     rows.map(r => `<tr><td class="mode">${esc(MODE_NAMES[r.mode] || r.mode)}</td>
       <td><div class="bar-cell"><div class="bar-track"><div class="bar" style="width:${(r.tokens_per_s / top * 100).toFixed(1)}%"></div></div><span class="bar-val">${r.tokens_per_s}</span></div></td>
       <td>${r.latency_ms}</td><td>${r.tokens}</td><td>${r.peak_memory_gb}</td><td>${r.accept_rate ?? '–'}</td>
