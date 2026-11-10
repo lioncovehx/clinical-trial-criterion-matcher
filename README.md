@@ -4,7 +4,7 @@
 
 Given a patient note and one trial criterion, the system predicts an eligibility label and cites the supporting patient sentences. It fine-tunes Qwen3-1.7B on the TrialGPT Criterion Annotations dataset, and includes hand-built KV-cached decoding, tiled attention with online softmax, greedy speculative decoding, and a browser app.
 
-- Demo video: https://youtu.be/hrAsIXDdcZQ
+- Demo video: https://youtu.be/WZHiOuR4QQM
 - Fine-tuned adapter: https://huggingface.co/lioncovehx/qwen3-1.7b-trialgpt-lora
 - Draft adapter (speculative decoding): https://huggingface.co/lioncovehx/qwen3-0.6b-trialgpt-draft-lora
 
